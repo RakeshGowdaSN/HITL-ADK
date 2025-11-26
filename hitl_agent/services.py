@@ -46,25 +46,6 @@ def get_memory_service(agent_engine_id: Optional[str] = None):
     return InMemoryMemoryService()
 
 
-def _initialize_vertexai_client():
-    api_key = os.getenv("GOOGLE_API_KEY")
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-
-    import vertexai
-
-    if api_key:
-        return vertexai.Client(api_key=api_key)
-
-    if not project:
-        raise ValueError(
-            "GOOGLE_CLOUD_PROJECT is required when using service account credentials"
-        )
-
-    vertexai.init(project=project, location=location)
-    return vertexai.Client()
-
-
 def create_agent_engine(
     display_name: str = "HITL Agent Engine",
     description: str = "Agent Engine for HITL workflow",
@@ -73,18 +54,32 @@ def create_agent_engine(
     Create a new Agent Engine instance using VertexAI SDK.
     This is needed before using VertexAiSessionService and VertexAiMemoryBankService.
 
-    Works for both API key (Express Mode) and service account credentials.
+    Requires service account credentials (GOOGLE_APPLICATION_CREDENTIALS) and
+    GOOGLE_CLOUD_PROJECT. API keys are not supported for Agent Engine creation.
     """
-    client = _initialize_vertexai_client()
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 
-    agent_engine = client.agent_engines.create(
-        config={"display_name": display_name, "description": description}
+    if not project:
+        raise ValueError(
+            "GOOGLE_CLOUD_PROJECT is required. "
+            "Set it in your .env file along with GOOGLE_APPLICATION_CREDENTIALS."
+        )
+
+    import vertexai
+    from vertexai import agent_engines
+
+    vertexai.init(project=project, location=location)
+
+    agent_engine = agent_engines.create(
+        display_name=display_name,
+        description=description,
     )
 
-    engine_id = agent_engine.api_resource.name.split("/")[-1]
+    engine_id = agent_engine.name.split("/")[-1]
 
     print(f"Created Agent Engine with ID: {engine_id}")
-    print(f"   Add this to your .env file: AGENT_ENGINE_ID={engine_id}")
+    print(f"Add this to your .env file: AGENT_ENGINE_ID={engine_id}")
 
     return engine_id
 

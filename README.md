@@ -59,27 +59,30 @@ Copy the example env file and fill in your values:
 cp env_example.txt .env
 ```
 
-Edit `.env` (pick one mode):
+Edit `.env`:
 
 ```env
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
 
-## Option 1: Express Mode (API key)
-GOOGLE_API_KEY=your-express-mode-api-key
-
-## Option 2: VertexAI Cloud (service account + project/location)
+# Service account credentials (required for Agent Engine)
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 
-## Common
+# Will be set after running setup_agent_engine.py
 AGENT_ENGINE_ID=your-agent-engine-id
+```
+
+Alternatively, authenticate via gcloud CLI instead of a service account file:
+
+```bash
+gcloud auth application-default login
 ```
 
 ### 3. Create Agent Engine (for VertexAI services)
 
 ```bash
-uv run python setup_agent_engine.py
+python setup_agent_engine.py
 ```
 
 Add the returned `AGENT_ENGINE_ID` to your `.env` file.
@@ -181,12 +184,11 @@ hitl-adk/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GOOGLE_GENAI_USE_VERTEXAI` | Set to `TRUE` for VertexAI services | Yes |
-| `GOOGLE_API_KEY` | Express Mode API key (optional if using service account) | Conditional |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Service account JSON path for VertexAI | Required for service account mode |
-| `GOOGLE_CLOUD_PROJECT` | VertexAI project when using service account | Required for service account mode |
-| `GOOGLE_CLOUD_LOCATION` | VertexAI location when using service account | Defaults to `us-central1` |
-| `AGENT_ENGINE_ID` | Agent Engine ID for sessions/memory | Required for VertexAI services |
+| `GOOGLE_GENAI_USE_VERTEXAI` | Set to `TRUE` for VertexAI | Yes |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (or use `gcloud auth`) | For Agent Engine |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID | Yes |
+| `GOOGLE_CLOUD_LOCATION` | GCP region | Defaults to `us-central1` |
+| `AGENT_ENGINE_ID` | Agent Engine ID for sessions/memory | Yes (after setup) |
 
 ### Using Local Services (No VertexAI)
 

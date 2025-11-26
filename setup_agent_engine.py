@@ -32,6 +32,21 @@ def main():
             print("   Keeping existing Agent Engine ID.")
             sys.exit(0)
 
+    # Check required env vars
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+    if not project:
+        print("Error: GOOGLE_CLOUD_PROJECT is required.")
+        print("Set it in your .env file.")
+        sys.exit(1)
+
+    if not creds:
+        print("Warning: GOOGLE_APPLICATION_CREDENTIALS not set.")
+        print("Make sure you have authenticated via 'gcloud auth application-default login'")
+        print("or set GOOGLE_APPLICATION_CREDENTIALS to your service account JSON file.")
+        print()
+
     try:
         engine_id = create_agent_engine()
         print("\n" + "=" * 60)
@@ -42,8 +57,7 @@ def main():
         print(f"   AGENT_ENGINE_ID={engine_id}")
         print("\n" + "=" * 60 + "\n")
     except ValueError as ve:
-        print(f"{ve}")
-        print("   Provide GOOGLE_API_KEY or configure GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT.")
+        print(f"Error: {ve}")
         sys.exit(1)
     except ImportError:
         print("Error: vertexai package not installed.")
