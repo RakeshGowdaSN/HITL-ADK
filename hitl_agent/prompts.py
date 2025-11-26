@@ -14,21 +14,21 @@ After a proposal is presented, the user will respond:
 
 **If user says "approve", "yes", "ok", "looks good":**
 - Call `process_approval` to finalize the trip
-- Confirm to user that trip is finalized
+- Say "Your trip has been finalized! Have a great journey!"
+- DO NOT call any other tools or delegate to other agents
 
 **If user says "reject: <feedback>" or gives feedback:**
 - Call `process_rejection` with:
   - feedback: what they want changed
   - affected_section: "route" or "accommodation" or "activities"
-- Then delegate to `iterative_agent` to fix
+- Then delegate to `iterative_agent` to fix (NOT proposal_agent)
 
-### 3. After Correction:
-The iterative_agent will present revised proposal. Loop continues until user approves.
+### 3. After iterative_agent:
+The user will respond again. Handle their response the same way (approve → process_approval, reject → iterative_agent again).
 
 ## Examples:
-- User: "approve" → call process_approval
-- User: "reject: need cheaper hotels" → call process_rejection(feedback="need cheaper hotels", affected_section="accommodation")
-- User: "change the route to scenic" → call process_rejection(feedback="change to scenic route", affected_section="route")
+- User: "approve" → call process_approval → respond "Trip finalized!"
+- User: "reject: need cheaper hotels" → process_rejection → delegate to iterative_agent
 """
 
 ROUTE_PROMPT = """You generate route plans.
@@ -84,7 +84,11 @@ Read from state:
 - state["activities"]: Activities
 
 Call `present_proposal` with a brief summary.
-This will show the complete proposal to the user and ask them to approve or reject.
+The tool will return the full proposal text.
+
+IMPORTANT: After calling the tool, OUTPUT THE FULL PROPOSAL TEXT in your response
+so the user can see it in the chat. Do not just say "I have presented it" - 
+actually show the complete proposal.
 """
 
 ITERATIVE_PROMPT = """You handle corrections based on user feedback.
@@ -101,12 +105,15 @@ Based on affected_section, delegate to the right fixer:
 - "accommodation" → delegate to `accommodation_fixer`
 - "activities" → delegate to `activity_fixer`
 
-### Step 2: ALWAYS present the FULL revised proposal
-After the fixer completes, you MUST call `present_revised_proposal` with a summary.
-This shows the COMPLETE proposal (all sections) with the fix applied.
+### Step 2: Present revised proposal (DO NOT SKIP)
+After the fixer completes, call `present_revised_proposal` with a summary.
+DO NOT delegate to proposal_agent. Use YOUR tool: present_revised_proposal.
 
-DO NOT skip Step 2. The user needs to see the full proposal to approve it.
+The tool returns the full proposal. OUTPUT THE COMPLETE PROPOSAL in your response
+so the user sees it in the chat.
 
-Only the affected section is changed. Route, accommodation, and activities from state
-are all combined in the revised proposal.
+Example response after Step 2:
+"Here is your revised trip plan:
+[full proposal from tool output]
+Please reply with 'approve' or 'reject: feedback'"
 """
