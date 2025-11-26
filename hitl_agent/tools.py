@@ -43,7 +43,6 @@ def process_human_decision(
 ) -> dict:
     """
     Process the human's approval or rejection decision.
-    Call this when user responds with approve/reject.
     
     Args:
         decision: Either "approve" or "reject"
@@ -51,7 +50,7 @@ def process_human_decision(
         tool_context: ADK tool context for state management
     
     Returns:
-        dict indicating next action - delegate to next_agent or rectification_agent
+        dict indicating next action
     """
     pending = tool_context.state.get("pending_proposal", {})
     
@@ -70,9 +69,9 @@ def process_human_decision(
         
         return {
             "status": "approved",
-            "message": "Proposal approved. Now delegate to next_agent to handle the approved content.",
+            "message": "Proposal approved. Call finalize_approved_content to complete the workflow.",
             "content": pending["content"],
-            "next_action": "delegate_to_next_agent"
+            "next_action": "finalize"
         }
     else:
         tool_context.state["pending_proposal"]["status"] = "rejected"
@@ -81,7 +80,7 @@ def process_human_decision(
         
         return {
             "status": "rejected",
-            "message": "Proposal rejected. Now delegate to rectification_agent to improve the content.",
+            "message": "Proposal rejected. Delegate to rectification_agent to fix the specific part.",
             "rejection_reason": rejection_reason or "No reason given",
             "original_content": pending["content"],
             "next_action": "delegate_to_rectification_agent"
@@ -91,15 +90,16 @@ def process_human_decision(
 def submit_rectified_output(
     rectified_content: str,
     changes_made: str,
+    sub_agent_used: str,
     tool_context: ToolContext,
 ) -> dict:
     """
     Submit improved content after rejection.
-    Call this after improving content based on rejection feedback.
     
     Args:
         rectified_content: The improved content
         changes_made: Summary of what was changed
+        sub_agent_used: Which sub-agent was used for rectification
         tool_context: ADK tool context for state management
     
     Returns:
@@ -111,7 +111,8 @@ def submit_rectified_output(
         "content": rectified_content,
         "type": tool_context.state.get("pending_proposal", {}).get("type", "rectified"),
         "status": "pending",
-        "changes_made": changes_made
+        "changes_made": changes_made,
+        "sub_agent_used": sub_agent_used
     }
     tool_context.state["awaiting_decision"] = True
     
@@ -120,49 +121,48 @@ def submit_rectified_output(
         "message": "Rectified content ready for review.",
         "original_feedback": reason,
         "changes_made": changes_made,
+        "sub_agent_used": sub_agent_used,
         "content": rectified_content,
         "instructions": "Waiting for user to respond with 'approve' or 'reject: reason'"
     }
 
 
-def execute_next_step(
-    action_type: str,
-    action_description: str,
+def finalize_approved_content(
+    summary: str,
     tool_context: ToolContext,
 ) -> dict:
     """
-    Execute the next step after approval. Called by next_agent.
+    Finalize the approved content and end the workflow.
+    Call this after human approves the proposal.
     
     Args:
-        action_type: Type of action (e.g., "save", "deploy", "send", "process")
-        action_description: Description of what was done with the approved content
+        summary: Brief summary of what was approved
         tool_context: ADK tool context for state management
     
     Returns:
-        dict with execution result
+        dict confirming completion
     """
     approved_content = tool_context.state.get("approved_content", "")
     approved_type = tool_context.state.get("approved_type", "content")
     
-    # Track execution history
+    # Track in history
     history = tool_context.state.get("execution_history", [])
     history.append({
         "content": approved_content,
         "type": approved_type,
-        "action_type": action_type,
-        "action_description": action_description,
-        "status": "completed"
+        "summary": summary,
+        "status": "finalized"
     })
     tool_context.state["execution_history"] = history
     
-    # Clear pending state
+    # Clear workflow state
     tool_context.state["pending_proposal"] = None
     tool_context.state["approved_content"] = None
     tool_context.state["approved_type"] = None
+    tool_context.state["awaiting_decision"] = False
     
     return {
-        "status": "completed",
-        "action_type": action_type,
-        "action_description": action_description,
-        "message": f"Next step completed: {action_description}"
+        "status": "finalized",
+        "summary": summary,
+        "message": f"Workflow complete. {summary}"
     }
