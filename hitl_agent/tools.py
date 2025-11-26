@@ -1,82 +1,78 @@
-"""HITL Tools using ADK's built-in confirmation mechanism."""
+"""HITL Tools - using FunctionTool with require_confirmation=True."""
 
 from google.adk.tools import ToolContext
 
 
-async def submit_for_approval(
-    combined_proposal: str,
+def execute_proposal(
+    route_plan: str,
+    accommodation_plan: str,
+    activity_plan: str,
     tool_context: ToolContext,
 ) -> dict:
     """
-    Submit the combined proposal for human approval.
-    Uses ADK's request_confirmation to pause and wait for human response.
+    Execute the complete proposal after human confirms.
+    This tool uses require_confirmation=True so ADK will pause for approval.
     
     Args:
-        combined_proposal: The full proposal combining all sub-agent outputs
+        route_plan: The route planning section
+        accommodation_plan: The accommodation section
+        activity_plan: The activities section
         tool_context: ADK tool context
     
     Returns:
-        dict with approval result
+        dict with the finalized proposal
     """
-    # Store proposal
-    tool_context.state["pending_proposal"] = combined_proposal
-    
-    # Use ADK's built-in confirmation - this PAUSES and waits for human
-    confirmation = await tool_context.request_confirmation(
-        hint=f"Please review the complete proposal:\n\n{combined_proposal}\n\n---\nRespond 'approve' to accept, or describe what needs to change.",
-        payload={"approved": False, "feedback": ""}
-    )
-    
-    if confirmation and confirmation.payload.get("approved", False):
-        tool_context.state["approved_content"] = combined_proposal
-        return {
-            "status": "approved",
-            "message": "Proposal approved by human."
-        }
-    else:
-        feedback = confirmation.payload.get("feedback", "No feedback") if confirmation else "Rejected"
-        tool_context.state["rejection_feedback"] = feedback
-        return {
-            "status": "rejected",
-            "feedback": feedback,
-            "message": "Proposal rejected. Delegate to rectification_agent."
-        }
+    # Combine all parts
+    combined = f"""
+ROUTE PLAN:
+{route_plan}
 
+ACCOMMODATIONS:
+{accommodation_plan}
 
-async def finalize_approved(
-    summary: str,
-    tool_context: ToolContext,
-) -> dict:
-    """
-    Finalize the approved proposal. Call this after human approval.
+ACTIVITIES:
+{activity_plan}
+"""
     
-    Args:
-        summary: Brief summary of what was approved
-        tool_context: ADK tool context
-    
-    Returns:
-        dict confirming completion
-    """
-    approved = tool_context.state.get("approved_content", "")
+    # Store in state
+    tool_context.state["approved_content"] = combined
     
     # Track history
     history = tool_context.state.get("execution_history", [])
     history.append({
-        "content": approved,
-        "summary": summary,
+        "content": combined,
         "status": "finalized"
     })
     tool_context.state["execution_history"] = history
     
-    # Clear workflow state
-    tool_context.state["pending_proposal"] = None
-    tool_context.state["approved_content"] = None
-    tool_context.state["route_plan"] = None
-    tool_context.state["accommodation_plan"] = None
-    tool_context.state["activity_plan"] = None
+    return {
+        "status": "finalized",
+        "message": "Proposal approved and finalized.",
+        "content": combined
+    }
+
+
+def submit_rectified(
+    rectified_content: str,
+    what_was_fixed: str,
+    tool_context: ToolContext,
+) -> dict:
+    """
+    Submit rectified content after human confirms the fix.
+    This tool uses require_confirmation=True so ADK will pause for approval.
+    
+    Args:
+        rectified_content: The improved content
+        what_was_fixed: Description of what was changed
+        tool_context: ADK tool context
+    
+    Returns:
+        dict with result
+    """
+    tool_context.state["approved_content"] = rectified_content
     
     return {
         "status": "finalized",
-        "summary": summary,
-        "message": f"Workflow complete: {summary}"
+        "message": f"Rectified proposal approved. Fixed: {what_was_fixed}",
+        "content": rectified_content
     }
