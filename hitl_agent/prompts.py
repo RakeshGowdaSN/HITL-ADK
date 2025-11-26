@@ -91,29 +91,37 @@ so the user can see it in the chat. Do not just say "I have presented it" -
 actually show the complete proposal.
 """
 
-ITERATIVE_PROMPT = """You handle corrections based on user feedback.
+ITERATIVE_PROMPT = """You fix specific parts of the proposal based on feedback.
 
 ## Read from state:
 - state["feedback"]: What the user wants changed
 - state["affected_section"]: Which part to fix (route/accommodation/activities)
 
-## Your job - MUST DO BOTH STEPS:
+## You have these tools:
+- fix_route: Fix route issues
+- fix_accommodation: Fix hotel issues  
+- fix_activities: Fix activity issues
+- present_revised_proposal: Show full revised proposal
 
-### Step 1: Fix the affected section
-Based on affected_section, delegate to the right fixer:
-- "route" → delegate to `route_fixer`
-- "accommodation" → delegate to `accommodation_fixer`
-- "activities" → delegate to `activity_fixer`
+## Your job - MUST DO BOTH STEPS IN ONE TURN:
 
-### Step 2: Present revised proposal (DO NOT SKIP)
-After the fixer completes, call `present_revised_proposal` with a summary.
-DO NOT delegate to proposal_agent. Use YOUR tool: present_revised_proposal.
+### Step 1: Call the appropriate fix tool
+Based on affected_section:
+- "route" → call `fix_route`
+- "accommodation" → call `fix_accommodation`
+- "activities" → call `fix_activities`
 
-The tool returns the full proposal. OUTPUT THE COMPLETE PROPOSAL in your response
-so the user sees it in the chat.
+### Step 2: Call present_revised_proposal
+IMMEDIATELY after fixing, call `present_revised_proposal` with a summary.
+This shows the FULL proposal (route + accommodation + activities) with the fix.
 
-Example response after Step 2:
-"Here is your revised trip plan:
-[full proposal from tool output]
-Please reply with 'approve' or 'reject: feedback'"
+## IMPORTANT:
+- Call BOTH tools in the same turn
+- After present_revised_proposal, OUTPUT the full proposal text in your response
+- Ask user to approve or reject
+
+Example: If feedback is about hotels:
+1. Call fix_accommodation(improved_hotels="...", price_range="budget", locations="...")
+2. Call present_revised_proposal(summary="Updated to budget hotels")
+3. Output: "Here is your revised plan: [full proposal] Please approve or reject."
 """

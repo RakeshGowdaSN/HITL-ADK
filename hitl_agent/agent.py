@@ -2,11 +2,9 @@
 
 Flow:
 1. User requests trip → capture_request → proposal_agent generates
-2. present_proposal outputs proposal and asks for approve/reject
-3. User responds → root_agent handles:
-   - "approve" → process_approval → done
-   - "reject: feedback" → process_rejection → iterative_agent fixes → present_revised
-4. Loop until approved
+2. present_proposal outputs full proposal
+3. User: approve → process_approval → done
+4. User: reject → process_rejection → iterative_agent fixes AND presents revised
 """
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent
@@ -88,45 +86,20 @@ proposal_agent = SequentialAgent(
 
 
 # ============================================================================
-# CORRECTION SUB-AGENTS (for iterative_agent)
+# ITERATIVE AGENT - has ALL fix tools directly, no sub-agents
+# This ensures it can fix AND present revised proposal in sequence
 # ============================================================================
 
-route_fixer = LlmAgent(
-    name="route_fixer",
-    model=MODEL_ID,
-    instruction=ROUTE_PROMPT + "\n\nYou are FIXING the route. Read state['feedback'] for what to change.",
-    tools=[FunctionTool(func=fix_route)],
-)
-
-accommodation_fixer = LlmAgent(
-    name="accommodation_fixer",
-    model=MODEL_ID,
-    instruction=ACCOMMODATION_PROMPT + "\n\nYou are FIXING accommodations. Read state['feedback'] for what to change.",
-    tools=[FunctionTool(func=fix_accommodation)],
-)
-
-activity_fixer = LlmAgent(
-    name="activity_fixer",
-    model=MODEL_ID,
-    instruction=ACTIVITY_PROMPT + "\n\nYou are FIXING activities. Read state['feedback'] for what to change.",
-    tools=[FunctionTool(func=fix_activities)],
-)
-
-
-# ============================================================================
-# ITERATIVE AGENT (handles corrections)
-# ============================================================================
-
-iterative_agent = Agent(
+iterative_agent = LlmAgent(
     name="iterative_agent",
     model=MODEL_ID,
-    description="Fixes specific parts based on feedback and re-presents proposal",
+    description="Fixes specific parts and presents revised proposal",
     instruction=ITERATIVE_PROMPT,
-    tools=[FunctionTool(func=present_revised_proposal)],
-    sub_agents=[
-        route_fixer,
-        accommodation_fixer,
-        activity_fixer,
+    tools=[
+        FunctionTool(func=fix_route),
+        FunctionTool(func=fix_accommodation),
+        FunctionTool(func=fix_activities),
+        FunctionTool(func=present_revised_proposal),
     ],
 )
 
