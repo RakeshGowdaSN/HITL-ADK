@@ -1,13 +1,15 @@
 """HITL Agent with sub-agents under proposal agent.
 
 Architecture:
-    hitl_orchestrator
-    ├── proposal_agent (orchestrator for content generation)
-    │   ├── sub_agent_1 (customize: e.g., route_planner)
-    │   ├── sub_agent_2 (customize: e.g., accommodation_finder)
-    │   └── sub_agent_3 (customize: e.g., activity_suggester)
+    hitl_orchestrator (root)
+    ├── proposal_agent
+    │   ├── route_planner
+    │   ├── accommodation_finder
+    │   └── activity_suggester
     └── rectification_agent
-        └── calls specific sub_agent based on rejection feedback
+        ├── route_planner_rectifier (separate instance)
+        ├── accommodation_rectifier (separate instance)
+        └── activity_rectifier (separate instance)
 """
 
 from google.adk.agents import Agent
@@ -33,25 +35,24 @@ MODEL_ID = "gemini-2.0-flash"
 
 
 # ============================================================================
-# SUB-AGENTS (under proposal_agent)
-# Customize these for your use case
+# SUB-AGENTS FOR PROPOSAL_AGENT
 # ============================================================================
 
-sub_agent_1 = Agent(
+route_planner = Agent(
     name="route_planner",
     model=MODEL_ID,
     description="Plans routes, directions, and transportation options",
     instruction=SUB_AGENT_1_PROMPT,
 )
 
-sub_agent_2 = Agent(
+accommodation_finder = Agent(
     name="accommodation_finder",
     model=MODEL_ID,
     description="Finds and recommends accommodations and hotels",
     instruction=SUB_AGENT_2_PROMPT,
 )
 
-sub_agent_3 = Agent(
+activity_suggester = Agent(
     name="activity_suggester",
     model=MODEL_ID,
     description="Suggests activities, attractions, and things to do",
@@ -60,7 +61,33 @@ sub_agent_3 = Agent(
 
 
 # ============================================================================
-# PROPOSAL AGENT (orchestrates sub-agents to build complete proposal)
+# SUB-AGENTS FOR RECTIFICATION_AGENT (separate instances)
+# ============================================================================
+
+route_planner_rectifier = Agent(
+    name="route_planner_rectifier",
+    model=MODEL_ID,
+    description="Fixes route/transportation issues based on feedback",
+    instruction=SUB_AGENT_1_PROMPT + "\n\nYou are fixing a previously rejected route plan based on user feedback.",
+)
+
+accommodation_rectifier = Agent(
+    name="accommodation_rectifier",
+    model=MODEL_ID,
+    description="Fixes accommodation recommendations based on feedback",
+    instruction=SUB_AGENT_2_PROMPT + "\n\nYou are fixing previously rejected accommodation suggestions based on user feedback.",
+)
+
+activity_rectifier = Agent(
+    name="activity_rectifier",
+    model=MODEL_ID,
+    description="Fixes activity suggestions based on feedback",
+    instruction=SUB_AGENT_3_PROMPT + "\n\nYou are fixing previously rejected activity suggestions based on user feedback.",
+)
+
+
+# ============================================================================
+# PROPOSAL AGENT
 # ============================================================================
 
 proposal_agent = Agent(
@@ -72,29 +99,29 @@ proposal_agent = Agent(
         FunctionTool(func=request_human_approval),
     ],
     sub_agents=[
-        sub_agent_1,
-        sub_agent_2,
-        sub_agent_3,
+        route_planner,
+        accommodation_finder,
+        activity_suggester,
     ],
 )
 
 
 # ============================================================================
-# RECTIFICATION AGENT (calls specific sub-agent based on feedback)
+# RECTIFICATION AGENT
 # ============================================================================
 
 rectification_agent = Agent(
     name="rectification_agent",
     model=MODEL_ID,
-    description="Improves specific parts of rejected content by calling the relevant sub-agent",
+    description="Fixes specific parts of rejected content using relevant sub-agent",
     instruction=RECTIFICATION_AGENT_PROMPT,
     tools=[
         FunctionTool(func=submit_rectified_output),
     ],
     sub_agents=[
-        sub_agent_1,
-        sub_agent_2,
-        sub_agent_3,
+        route_planner_rectifier,
+        accommodation_rectifier,
+        activity_rectifier,
     ],
 )
 

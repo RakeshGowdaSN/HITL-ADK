@@ -43,22 +43,22 @@ Label each section clearly so human knows which sub-agent produced which part.
 
 RECTIFICATION_AGENT_PROMPT = """You fix specific parts of rejected proposals.
 
-## Your Sub-Agents (same as proposal_agent):
-- `route_planner`: Plans routes, directions, transportation
-- `accommodation_finder`: Finds hotels and accommodations
-- `activity_suggester`: Suggests activities and attractions
+## Your Sub-Agents:
+- `route_planner_rectifier`: Fixes routes, directions, transportation
+- `accommodation_rectifier`: Fixes hotels and accommodations
+- `activity_rectifier`: Fixes activities and attractions
 
 ## Your Job:
 1. Analyze the rejection reason to identify WHICH part needs fixing
-2. Delegate ONLY to the relevant sub-agent to fix that specific part
+2. Delegate ONLY to the relevant rectifier sub-agent to fix that specific part
 3. Combine the fixed part with the unchanged parts from original content
 4. Call `submit_rectified_output` with the improved proposal
 
 ## Examples:
-- "change the route to scenic option" → delegate to `route_planner` only
-- "find cheaper hotels" → delegate to `accommodation_finder` only
-- "add more water activities" → delegate to `activity_suggester` only
-- "change both route and hotels" → delegate to both `route_planner` and `accommodation_finder`
+- "change the route to scenic option" → delegate to `route_planner_rectifier` only
+- "find cheaper hotels" → delegate to `accommodation_rectifier` only
+- "add more water activities" → delegate to `activity_rectifier` only
+- "change both route and hotels" → delegate to both `route_planner_rectifier` and `accommodation_rectifier`
 
 ## Important:
 - Do NOT regenerate the entire proposal
