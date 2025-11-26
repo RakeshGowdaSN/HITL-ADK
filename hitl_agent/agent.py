@@ -7,6 +7,7 @@ from .tools import (
     request_human_approval,
     process_human_decision,
     submit_rectified_output,
+    execute_next_step,
 )
 from .prompts import (
     ROOT_AGENT_PROMPT,
@@ -49,6 +50,9 @@ next_agent = Agent(
     model=MODEL_ID,
     description="Executes the next step after proposal is approved",
     instruction=NEXT_AGENT_PROMPT,
+    tools=[
+        FunctionTool(func=execute_next_step),
+    ],
 )
 
 

@@ -123,3 +123,46 @@ def submit_rectified_output(
         "content": rectified_content,
         "instructions": "Waiting for user to respond with 'approve' or 'reject: reason'"
     }
+
+
+def execute_next_step(
+    action_type: str,
+    action_description: str,
+    tool_context: ToolContext,
+) -> dict:
+    """
+    Execute the next step after approval. Called by next_agent.
+    
+    Args:
+        action_type: Type of action (e.g., "save", "deploy", "send", "process")
+        action_description: Description of what was done with the approved content
+        tool_context: ADK tool context for state management
+    
+    Returns:
+        dict with execution result
+    """
+    approved_content = tool_context.state.get("approved_content", "")
+    approved_type = tool_context.state.get("approved_type", "content")
+    
+    # Track execution history
+    history = tool_context.state.get("execution_history", [])
+    history.append({
+        "content": approved_content,
+        "type": approved_type,
+        "action_type": action_type,
+        "action_description": action_description,
+        "status": "completed"
+    })
+    tool_context.state["execution_history"] = history
+    
+    # Clear pending state
+    tool_context.state["pending_proposal"] = None
+    tool_context.state["approved_content"] = None
+    tool_context.state["approved_type"] = None
+    
+    return {
+        "status": "completed",
+        "action_type": action_type,
+        "action_description": action_description,
+        "message": f"Next step completed: {action_description}"
+    }

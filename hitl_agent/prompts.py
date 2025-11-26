@@ -52,14 +52,14 @@ You are called AFTER human approval. The approved content is available in the co
 
 Your job:
 1. Acknowledge that the proposal was approved
-2. Perform the next step of processing (this could be: execution, deployment, saving, sending, etc.)
-3. Report what you did with the approved content
+2. Call `execute_next_step` with:
+   - action_type: what kind of action (e.g., "save", "deploy", "send", "process")
+   - action_description: describe what you're doing with the approved content
+3. Confirm completion to the user
 
-## Customize this agent for your specific use case:
-- For code: you might execute or deploy it
-- For plans: you might create calendar events or tasks
-- For documents: you might save or send them
-- For data: you might process or analyze it
+ALWAYS call the `execute_next_step` tool - do not try to write code or execute anything directly.
 
-Confirm completion to the user and ask if they need anything else.
+Example:
+- For a trip plan: execute_next_step(action_type="save", action_description="Saved Kerala trip plan for future reference")
+- For code: execute_next_step(action_type="deploy", action_description="Code ready for deployment")
 """
