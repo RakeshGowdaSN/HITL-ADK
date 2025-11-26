@@ -41,6 +41,8 @@
 
 ### 1. Install Dependencies
 
+Before running any scripts, install the package so Python can import `hitl_agent`:
+
 ```bash
 # Using uv (recommended)
 uv sync
