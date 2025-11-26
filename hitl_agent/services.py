@@ -4,102 +4,88 @@ import os
 from typing import Optional
 
 
+def _should_use_vertex_services() -> bool:
+    return os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE"
+
+
+def _create_vertex_services_condition(agent_engine_id: Optional[str]):
+    use_vertex = _should_use_vertex_services()
+    engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
+    return use_vertex and engine_id
+
+
 def get_session_service(agent_engine_id: Optional[str] = None):
     """
-    Get configured VertexAI Session Service.
-    
-    For Express Mode: Uses API key from environment
-    For Full VertexAI: Uses project/location from environment
-    
-    Args:
-        agent_engine_id: Optional Agent Engine ID (uses env var if not provided)
-    
-    Returns:
-        Configured session service (VertexAiSessionService or InMemorySessionService for local)
+    Get configured VertexAI Session Service or fall back to in-memory.
     """
-    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE"
-    engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
-    
-    if use_vertex and engine_id:
-        # Use VertexAI Session Service
+    if _create_vertex_services_condition(agent_engine_id):
         from google.adk.sessions import VertexAiSessionService
-        
+
+        engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
         print(f"🔧 Using VertexAiSessionService with Agent Engine: {engine_id}")
         return VertexAiSessionService(agent_engine_id=engine_id)
-    else:
-        # Fall back to in-memory for local testing
-        from google.adk.sessions import InMemorySessionService
-        
-        print("🔧 Using InMemorySessionService (local testing mode)")
-        return InMemorySessionService()
+
+    from google.adk.sessions import InMemorySessionService
+    print("🔧 Using InMemorySessionService (local testing mode)")
+    return InMemorySessionService()
 
 
 def get_memory_service(agent_engine_id: Optional[str] = None):
     """
-    Get configured VertexAI Memory Bank Service.
-    
-    For Express Mode: Uses API key from environment
-    For Full VertexAI: Uses project/location from environment
-    
-    Args:
-        agent_engine_id: Optional Agent Engine ID (uses env var if not provided)
-    
-    Returns:
-        Configured memory service (VertexAiMemoryBankService or InMemoryMemoryService for local)
+    Get configured VertexAI Memory Bank Service or fall back to in-memory.
     """
-    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE"
-    engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
-    
-    if use_vertex and engine_id:
-        # Use VertexAI Memory Bank Service
+    if _create_vertex_services_condition(agent_engine_id):
         from google.adk.memory import VertexAiMemoryBankService
-        
+
+        engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
         print(f"🔧 Using VertexAiMemoryBankService with Agent Engine: {engine_id}")
         return VertexAiMemoryBankService(agent_engine_id=engine_id)
-    else:
-        # Fall back to in-memory for local testing
-        from google.adk.memory import InMemoryMemoryService
-        
-        print("🔧 Using InMemoryMemoryService (local testing mode)")
-        return InMemoryMemoryService()
+
+    from google.adk.memory import InMemoryMemoryService
+    print("🔧 Using InMemoryMemoryService (local testing mode)")
+    return InMemoryMemoryService()
 
 
-def create_agent_engine(display_name: str = "HITL Agent Engine", description: str = "Agent Engine for HITL workflow"):
+def _initialize_vertexai_client():
+    api_key = os.getenv("GOOGLE_API_KEY")
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+
+    import vertexai
+
+    if api_key:
+        return vertexai.Client(api_key=api_key)
+
+    if not project:
+        raise ValueError(
+            "GOOGLE_CLOUD_PROJECT is required when using service account credentials"
+        )
+
+    vertexai.init(project=project, location=location)
+    return vertexai.Client()
+
+
+def create_agent_engine(
+    display_name: str = "HITL Agent Engine",
+    description: str = "Agent Engine for HITL workflow",
+):
     """
     Create a new Agent Engine instance using VertexAI SDK.
     This is needed before using VertexAiSessionService and VertexAiMemoryBankService.
-    
-    Args:
-        display_name: Display name for the agent engine
-        description: Description of the agent engine
-    
-    Returns:
-        The created agent engine ID
+
+    Works for both API key (Express Mode) and service account credentials.
     """
-    import vertexai
-    
-    api_key = os.getenv("GOOGLE_API_KEY")
-    
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable is required")
-    
-    # Initialize Vertex AI client
-    client = vertexai.Client(api_key=api_key)
-    
-    # Create agent engine
+    client = _initialize_vertexai_client()
+
     agent_engine = client.agent_engines.create(
-        config={
-            "display_name": display_name,
-            "description": description,
-        }
+        config={"display_name": display_name, "description": description}
     )
-    
-    # Extract the ID from the resource name
-    engine_id = agent_engine.api_resource.name.split('/')[-1]
-    
+
+    engine_id = agent_engine.api_resource.name.split("/")[-1]
+
     print(f"✅ Created Agent Engine with ID: {engine_id}")
     print(f"   Add this to your .env file: AGENT_ENGINE_ID={engine_id}")
-    
+
     return engine_id
 
 

@@ -57,11 +57,21 @@ Copy the example env file and fill in your values:
 cp env_example.txt .env
 ```
 
-Edit `.env`:
+Edit `.env` (pick one mode):
 
 ```env
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
+
+## Option 1: Express Mode (API key)
 GOOGLE_API_KEY=your-express-mode-api-key
+
+## Option 2: VertexAI Cloud (service account + project/location)
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+
+## Common
+AGENT_ENGINE_ID=your-agent-engine-id
 ```
 
 ### 3. Create Agent Engine (for VertexAI services)
@@ -140,8 +150,8 @@ gcloud run deploy hitl-agent \
   --image gcr.io/YOUR_PROJECT/hitl-agent \
   --platform managed \
   --region us-central1 \
-  --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=TRUE,AGENT_ENGINE_ID=your-engine-id" \
-  --set-secrets "GOOGLE_API_KEY=google-api-key:latest" \
+  --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=TRUE,AGENT_ENGINE_ID=your-engine-id,GOOGLE_CLOUD_PROJECT=your-project,GOOGLE_CLOUD_LOCATION=us-central1" \
+  --set-secrets "GOOGLE_APPLICATION_CREDENTIALS=vertex-service-account:latest" \
   --allow-unauthenticated
 ```
 
@@ -169,9 +179,12 @@ hitl-adk/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GOOGLE_GENAI_USE_VERTEXAI` | Set to `TRUE` for VertexAI | Yes |
-| `GOOGLE_API_KEY` | Express Mode API key | Yes |
-| `AGENT_ENGINE_ID` | Agent Engine ID for sessions/memory | For VertexAI services |
+| `GOOGLE_GENAI_USE_VERTEXAI` | Set to `TRUE` for VertexAI services | Yes |
+| `GOOGLE_API_KEY` | Express Mode API key (optional if using service account) | Conditional |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Service account JSON path for VertexAI | Required for service account mode |
+| `GOOGLE_CLOUD_PROJECT` | VertexAI project when using service account | Required for service account mode |
+| `GOOGLE_CLOUD_LOCATION` | VertexAI location when using service account | Defaults to `us-central1` |
+| `AGENT_ENGINE_ID` | Agent Engine ID for sessions/memory | Required for VertexAI services |
 
 ### Using Local Services (No VertexAI)
 
@@ -179,8 +192,7 @@ For pure local testing without VertexAI, simply don't set `AGENT_ENGINE_ID`:
 
 ```env
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
-GOOGLE_API_KEY=your-api-key
-# AGENT_ENGINE_ID not set - uses InMemory services
+# API key/service account not configured - uses InMemory services
 ```
 
 ## 📚 References
