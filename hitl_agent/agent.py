@@ -1,10 +1,12 @@
-"""HITL Agent with SequentialAgent + Iterative correction.
+"""HITL Agent with turn-based approval flow.
 
-Architecture:
-1. Root agent captures request, delegates to proposal_agent
-2. SequentialAgent builds proposal, asks for approval
-3. If rejected: iterative_agent routes to specific sub-agent to fix
-4. Fixed content goes back for approval
+Flow:
+1. User requests trip → capture_request → proposal_agent generates
+2. present_proposal outputs proposal and asks for approve/reject
+3. User responds → root_agent handles:
+   - "approve" → process_approval → done
+   - "reject: feedback" → process_rejection → iterative_agent fixes → present_revised
+4. Loop until approved
 """
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent
@@ -15,12 +17,13 @@ from .tools import (
     generate_route,
     generate_accommodation,
     generate_activities,
-    finalize_proposal,
-    store_feedback,
+    present_proposal,
+    process_approval,
+    process_rejection,
     fix_route,
     fix_accommodation,
     fix_activities,
-    resubmit_proposal,
+    present_revised_proposal,
 )
 from .prompts import (
     ROOT_PROMPT,
@@ -36,7 +39,7 @@ MODEL_ID = "gemini-2.0-flash"
 
 
 # ============================================================================
-# SUB-AGENTS FOR INITIAL PROPOSAL (SequentialAgent)
+# PROPOSAL SUB-AGENTS (SequentialAgent)
 # ============================================================================
 
 route_agent = LlmAgent(
@@ -64,9 +67,7 @@ finalizer_agent = LlmAgent(
     name="finalizer_agent",
     model=MODEL_ID,
     instruction=FINALIZER_PROMPT,
-    tools=[
-        FunctionTool(func=finalize_proposal, require_confirmation=True),
-    ],
+    tools=[FunctionTool(func=present_proposal)],
 )
 
 
@@ -76,7 +77,7 @@ finalizer_agent = LlmAgent(
 
 proposal_agent = SequentialAgent(
     name="proposal_agent",
-    description="Runs sub-agents sequentially to build complete proposal",
+    description="Generates complete proposal sequentially",
     sub_agents=[
         route_agent,
         accommodation_agent,
@@ -88,44 +89,40 @@ proposal_agent = SequentialAgent(
 
 # ============================================================================
 # CORRECTION SUB-AGENTS (for iterative_agent)
-# These are separate instances that fix specific parts
 # ============================================================================
 
 route_fixer = LlmAgent(
     name="route_fixer",
     model=MODEL_ID,
-    instruction=ROUTE_PROMPT + "\n\nYou are FIXING the route based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    instruction=ROUTE_PROMPT + "\n\nYou are FIXING the route. Read state['feedback'] for what to change.",
     tools=[FunctionTool(func=fix_route)],
 )
 
 accommodation_fixer = LlmAgent(
     name="accommodation_fixer",
     model=MODEL_ID,
-    instruction=ACCOMMODATION_PROMPT + "\n\nYou are FIXING accommodations based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    instruction=ACCOMMODATION_PROMPT + "\n\nYou are FIXING accommodations. Read state['feedback'] for what to change.",
     tools=[FunctionTool(func=fix_accommodation)],
 )
 
 activity_fixer = LlmAgent(
     name="activity_fixer",
     model=MODEL_ID,
-    instruction=ACTIVITY_PROMPT + "\n\nYou are FIXING activities based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    instruction=ACTIVITY_PROMPT + "\n\nYou are FIXING activities. Read state['feedback'] for what to change.",
     tools=[FunctionTool(func=fix_activities)],
 )
 
 
 # ============================================================================
-# ITERATIVE AGENT (handles rejection and routes to correct fixer)
+# ITERATIVE AGENT (handles corrections)
 # ============================================================================
 
 iterative_agent = Agent(
     name="iterative_agent",
     model=MODEL_ID,
-    description="Analyzes rejection feedback and routes to specific fixer agent",
+    description="Fixes specific parts based on feedback and re-presents proposal",
     instruction=ITERATIVE_PROMPT,
-    tools=[
-        FunctionTool(func=store_feedback),
-        FunctionTool(func=resubmit_proposal, require_confirmation=True),
-    ],
+    tools=[FunctionTool(func=present_revised_proposal)],
     sub_agents=[
         route_fixer,
         accommodation_fixer,
@@ -141,10 +138,12 @@ iterative_agent = Agent(
 root_agent = Agent(
     name="hitl_orchestrator",
     model=MODEL_ID,
-    description="Orchestrates proposal generation, approval, and iterative correction",
+    description="Orchestrates trip planning with human approval",
     instruction=ROOT_PROMPT,
     tools=[
         FunctionTool(func=capture_request),
+        FunctionTool(func=process_approval),
+        FunctionTool(func=process_rejection),
     ],
     sub_agents=[
         proposal_agent,
