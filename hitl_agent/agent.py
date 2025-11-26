@@ -1,25 +1,15 @@
-"""HITL Agent with sub-agents under proposal agent.
+"""HITL Agent using ADK's built-in confirmation mechanism.
 
-Architecture:
-    hitl_orchestrator (root)
-    ├── proposal_agent
-    │   ├── route_planner
-    │   ├── accommodation_finder
-    │   └── activity_suggester
-    └── rectification_agent
-        ├── route_planner_rectifier (separate instance)
-        ├── accommodation_rectifier (separate instance)
-        └── activity_rectifier (separate instance)
+Uses tool_context.request_confirmation() for true human-in-the-loop.
 """
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
 from .tools import (
-    request_human_approval,
-    process_human_decision,
-    submit_rectified_output,
-    finalize_approved_content,
+    submit_for_approval,
+    rectify_proposal,
+    finalize_approved,
 )
 from .prompts import (
     ROOT_AGENT_PROMPT,
@@ -35,54 +25,54 @@ MODEL_ID = "gemini-2.0-flash"
 
 
 # ============================================================================
-# SUB-AGENTS FOR PROPOSAL_AGENT
+# SUB-AGENTS FOR PROPOSAL GENERATION
 # ============================================================================
 
 route_planner = Agent(
     name="route_planner",
     model=MODEL_ID,
-    description="Plans routes, directions, and transportation options",
+    description="Plans routes, directions, and transportation",
     instruction=SUB_AGENT_1_PROMPT,
 )
 
 accommodation_finder = Agent(
     name="accommodation_finder",
     model=MODEL_ID,
-    description="Finds and recommends accommodations and hotels",
+    description="Finds hotels and accommodations",
     instruction=SUB_AGENT_2_PROMPT,
 )
 
 activity_suggester = Agent(
     name="activity_suggester",
     model=MODEL_ID,
-    description="Suggests activities, attractions, and things to do",
+    description="Suggests activities and attractions",
     instruction=SUB_AGENT_3_PROMPT,
 )
 
 
 # ============================================================================
-# SUB-AGENTS FOR RECTIFICATION_AGENT (separate instances)
+# SUB-AGENTS FOR RECTIFICATION (separate instances)
 # ============================================================================
 
-route_planner_rectifier = Agent(
-    name="route_planner_rectifier",
+route_rectifier = Agent(
+    name="route_rectifier",
     model=MODEL_ID,
-    description="Fixes route/transportation issues based on feedback",
-    instruction=SUB_AGENT_1_PROMPT + "\n\nYou are fixing a previously rejected route plan based on user feedback.",
+    description="Fixes route issues based on feedback",
+    instruction=SUB_AGENT_1_PROMPT + "\n\nFix the route based on human feedback.",
 )
 
 accommodation_rectifier = Agent(
     name="accommodation_rectifier",
     model=MODEL_ID,
-    description="Fixes accommodation recommendations based on feedback",
-    instruction=SUB_AGENT_2_PROMPT + "\n\nYou are fixing previously rejected accommodation suggestions based on user feedback.",
+    description="Fixes accommodation issues based on feedback",
+    instruction=SUB_AGENT_2_PROMPT + "\n\nFix accommodations based on human feedback.",
 )
 
 activity_rectifier = Agent(
     name="activity_rectifier",
     model=MODEL_ID,
     description="Fixes activity suggestions based on feedback",
-    instruction=SUB_AGENT_3_PROMPT + "\n\nYou are fixing previously rejected activity suggestions based on user feedback.",
+    instruction=SUB_AGENT_3_PROMPT + "\n\nFix activities based on human feedback.",
 )
 
 
@@ -93,10 +83,10 @@ activity_rectifier = Agent(
 proposal_agent = Agent(
     name="proposal_agent",
     model=MODEL_ID,
-    description="Orchestrates sub-agents to generate comprehensive proposals",
+    description="Generates proposals using sub-agents and submits for approval",
     instruction=PROPOSAL_AGENT_PROMPT,
     tools=[
-        FunctionTool(func=request_human_approval),
+        FunctionTool(func=submit_for_approval),
     ],
     sub_agents=[
         route_planner,
@@ -113,13 +103,13 @@ proposal_agent = Agent(
 rectification_agent = Agent(
     name="rectification_agent",
     model=MODEL_ID,
-    description="Fixes specific parts of rejected content using relevant sub-agent",
+    description="Fixes rejected proposals using specific sub-agents",
     instruction=RECTIFICATION_AGENT_PROMPT,
     tools=[
-        FunctionTool(func=submit_rectified_output),
+        FunctionTool(func=rectify_proposal),
     ],
     sub_agents=[
-        route_planner_rectifier,
+        route_rectifier,
         accommodation_rectifier,
         activity_rectifier,
     ],
@@ -127,17 +117,16 @@ rectification_agent = Agent(
 
 
 # ============================================================================
-# ROOT ORCHESTRATOR
+# ROOT AGENT
 # ============================================================================
 
 root_agent = Agent(
     name="hitl_orchestrator",
     model=MODEL_ID,
-    description="Orchestrates HITL workflow: proposal → approval/reject → finalize or rectify",
+    description="Orchestrates HITL workflow with built-in confirmation",
     instruction=ROOT_AGENT_PROMPT,
     tools=[
-        FunctionTool(func=process_human_decision),
-        FunctionTool(func=finalize_approved_content),
+        FunctionTool(func=finalize_approved),
     ],
     sub_agents=[
         proposal_agent,
