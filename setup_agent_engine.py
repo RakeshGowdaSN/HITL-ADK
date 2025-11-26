@@ -14,12 +14,12 @@ def main():
     """Create a new Agent Engine instance."""
 
     print("\n" + "=" * 60)
-    print("🔧 Agent Engine Setup for HITL Agent")
+    print("Agent Engine Setup for HITL Agent")
     print("=" * 60 + "\n")
 
     existing_id = os.getenv("AGENT_ENGINE_ID")
     if existing_id:
-        print(f"⚠️ You already have an AGENT_ENGINE_ID configured: {existing_id}")
+        print(f"You already have an AGENT_ENGINE_ID configured: {existing_id}")
         response = input("   Create a new one anyway? (y/N): ").strip().lower()
         if response != "y":
             print("   Keeping existing Agent Engine ID.")
@@ -28,22 +28,22 @@ def main():
     try:
         engine_id = create_agent_engine()
         print("\n" + "=" * 60)
-        print("✅ Agent Engine Created Successfully!")
+        print("Agent Engine Created Successfully.")
         print("=" * 60)
         print(f"\n   Agent Engine ID: {engine_id}")
         print(f"\n   Add this to your .env file:")
         print(f"   AGENT_ENGINE_ID={engine_id}")
         print("\n" + "=" * 60 + "\n")
     except ValueError as ve:
-        print(f"❌ {ve}")
+        print(f"{ve}")
         print("   Provide GOOGLE_API_KEY or configure GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT.")
         sys.exit(1)
     except ImportError:
-        print("❌ Error: vertexai package not installed.")
+        print("Error: vertexai package not installed.")
         print("   Run: pip install google-adk[vertexai]")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error creating Agent Engine: {e}")
+        print(f"Error creating Agent Engine: {e}")
         sys.exit(1)
 
 

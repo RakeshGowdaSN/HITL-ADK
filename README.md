@@ -1,11 +1,11 @@
-# 🤖🔁👱 HITL Agent - Human-in-the-Loop with Google ADK
+# HITL Agent - Human-in-the-Loop with Google ADK
 
-A Human-in-the-Loop (HITL) agent built with [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) featuring:
+# A human-in-the-loop workflow built with [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/).
 
 - **VertexAI Session Service** for persistent session management
-- **VertexAI Memory Bank Service** for long-term memory
-- **In-chat approval/rejection flow** - no external UI needed
-- **Multi-agent architecture** with proposal, rectification, and processor agents
+- **VertexAI Memory Bank Service** to capture approvals and outcomes
+- **Approval/rejection flow entirely in chat**
+- **Multi-agent architecture**: proposal, rectification, and processor agents
 
 ## 🏗️ Architecture
 
@@ -27,7 +27,7 @@ A Human-in-the-Loop (HITL) agent built with [Google Agent Development Kit (ADK)]
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 📋 Workflow
+## Workflow
 
 1. **User Request** → Proposal Agent generates output
 2. **Review** → User reviews in chat
@@ -37,7 +37,7 @@ A Human-in-the-Loop (HITL) agent built with [Google Agent Development Kit (ADK)]
 4. **Loop** → Rectified output goes back for approval
 5. **Complete** → Final execution after approval
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install Dependencies
 
@@ -96,7 +96,7 @@ uv run adk web
 
 Navigate to `http://localhost:8000`
 
-## 💬 Chat Commands
+## Chat Commands
 
 When a proposal is presented, respond with:
 
@@ -110,22 +110,22 @@ When a proposal is presented, respond with:
 ### Examples
 
 ```
-📝 You: Write a Python function to calculate factorial
+You: Write a Python function to calculate factorial
 
-🤖 Agent: [Proposal Agent generates function]
-   📋 Proposal Ready for Review...
+Agent: [Proposal Agent generates function]
+   Proposal Ready for Review...
    
-📝 You: reject: Please add input validation and docstring
+You: reject: Please add input validation and docstring
 
-🤖 Agent: [Rectification Agent improves]
-   🔄 Rectified Proposal Ready...
+Agent: [Rectification Agent improves]
+   Rectified Proposal Ready...
    
-📝 You: approve
+You: approve
 
-🤖 Agent: ✅ Proposal approved! Executing...
+Agent: Proposal approved! Executing...
 ```
 
-## 🏭 Deploy to Cloud Run
+## Deploy to Cloud Run
 
 ### 1. Build Container
 
@@ -173,7 +173,7 @@ hitl-adk/
 └── README.md
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -195,7 +195,7 @@ GOOGLE_GENAI_USE_VERTEXAI=TRUE
 # API key/service account not configured - uses InMemory services
 ```
 
-## 📚 References
+## References
 
 - [Google ADK Documentation](https://google.github.io/adk-docs/)
 - [VertexAI Express Mode](https://google.github.io/adk-docs/sessions/express-mode/)

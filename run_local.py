@@ -39,7 +39,7 @@ async def run_hitl_agent():
     )
     
     print("\n" + "="*60)
-    print("🤖 HITL Agent - Human-in-the-Loop Workflow")
+    print("HITL Agent - Human-in-the-Loop Workflow")
     print("="*60)
     print(f"Session ID: {session.id}")
     print(f"User ID: {user_id}")
@@ -54,25 +54,25 @@ async def run_hitl_agent():
     
     while True:
         try:
-            user_input = input("\n📝 You: ").strip()
+            user_input = input("\nYou: ").strip()
             
             if not user_input:
                 continue
             
             if user_input.lower() in ["quit", "exit", "q"]:
-                print("\n👋 Ending session. Goodbye!")
+                print("\nEnding session. Goodbye!")
                 
                 # Save session to memory before exiting
                 try:
                     await memory_service.add_session_to_memory(session)
-                    print("💾 Session saved to memory.")
+                    print("Session saved to memory.")
                 except Exception as e:
-                    print(f"⚠️ Could not save to memory: {e}")
+                    print(f"Could not save to memory: {e}")
                 
                 break
             
             # Run the agent
-            print("\n🤖 Agent: ", end="", flush=True)
+            print("\nAgent: ", end="", flush=True)
             
             content = types.Content(
                 role="user",
@@ -110,10 +110,10 @@ async def run_hitl_agent():
             )
             
         except KeyboardInterrupt:
-            print("\n\n👋 Interrupted. Ending session.")
+            print("\n\nInterrupted. Ending session.")
             break
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            print(f"\nError: {e}")
             import traceback
             traceback.print_exc()
 

@@ -31,14 +31,14 @@ def request_human_approval(
     
     return {
         "status": "awaiting_approval",
-        "message": f"📋 **Proposal Ready for Review**\n\n"
-                   f"**Type:** {proposal_type}\n\n"
-                   f"**Content:**\n{proposal_content}\n\n"
+        "message": f"Proposal Ready for Review\n\n"
+                   f"Type: {proposal_type}\n\n"
+                   f"Content:\n{proposal_content}\n\n"
                    f"---\n"
                    f"Please respond with:\n"
-                   f"- **'approve'** or **'yes'** to proceed to the next step\n"
-                   f"- **'reject: <reason>'** to request modifications\n\n"
-                   f"Example: `reject: Please add more error handling`"
+                   f"- 'approve' or 'yes' to proceed to the next step\n"
+                   f"- 'reject: <reason>' to request modifications\n\n"
+                   f"Example: reject: Please add more error handling"
     }
 
 
@@ -76,7 +76,7 @@ def process_human_decision(
         
         return {
             "status": "approved",
-            "message": "✅ Proposal approved! Proceeding to the next processing step.",
+            "message": "Proposal approved. Proceeding to the next step.",
             "content": pending["content"],
             "next_action": "process"
         }
@@ -89,8 +89,8 @@ def process_human_decision(
         
         return {
             "status": "rejected",
-            "message": f"❌ Proposal rejected.\n**Reason:** {rejection_reason}\n\n"
-                       f"Initiating rectification process...",
+            "message": f"Proposal rejected.\nReason: {rejection_reason}\n\n"
+                       f"Initiating rectification process.",
             "rejection_reason": rejection_reason,
             "original_content": pending["content"],
             "next_action": "rectify"
@@ -130,15 +130,15 @@ def submit_rectified_output(
     
     return {
         "status": "awaiting_approval",
-        "message": f"🔄 **Rectified Proposal Ready for Review**\n\n"
-                   f"**Original Rejection Reason:** {reason}\n\n"
-                   f"**Changes Made:** {changes_made}\n\n"
-                   f"**Rectified Content:**\n{rectified_content}\n\n"
+        "message": f"Rectified Proposal Ready for Review\n\n"
+                   f"Original Rejection Reason: {reason}\n\n"
+                   f"Changes Made: {changes_made}\n\n"
+                   f"Rectified Content:\n{rectified_content}\n\n"
                    f"---\n"
                    f"Please respond with:\n"
-                   f"- **'approve'** or **'yes'** to proceed\n"
-                   f"- **'reject: <reason>'** for further modifications"
-    }
+                   f"- 'approve' or 'yes' to proceed\n"
+                   f"- 'reject: <reason>' for further modifications"
+        }
 
 
 def execute_approved_action(
@@ -174,8 +174,8 @@ def execute_approved_action(
     
     return {
         "status": "executed",
-        "message": f"🚀 **Action Executed Successfully**\n\n"
-                   f"**Action:** {action_description}\n\n"
+        "message": f"Action executed successfully.\n\n"
+                   f"Action: {action_description}\n\n"
                    f"The approved content has been processed.",
         "executed_content": approved_content
     }

@@ -22,11 +22,11 @@ def get_session_service(agent_engine_id: Optional[str] = None):
         from google.adk.sessions import VertexAiSessionService
 
         engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
-        print(f"🔧 Using VertexAiSessionService with Agent Engine: {engine_id}")
+        print(f"Using VertexAiSessionService with Agent Engine: {engine_id}")
         return VertexAiSessionService(agent_engine_id=engine_id)
 
     from google.adk.sessions import InMemorySessionService
-    print("🔧 Using InMemorySessionService (local testing mode)")
+    print("Using InMemorySessionService (local testing mode)")
     return InMemorySessionService()
 
 
@@ -38,11 +38,11 @@ def get_memory_service(agent_engine_id: Optional[str] = None):
         from google.adk.memory import VertexAiMemoryBankService
 
         engine_id = agent_engine_id or os.getenv("AGENT_ENGINE_ID")
-        print(f"🔧 Using VertexAiMemoryBankService with Agent Engine: {engine_id}")
+        print(f"Using VertexAiMemoryBankService with Agent Engine: {engine_id}")
         return VertexAiMemoryBankService(agent_engine_id=engine_id)
 
     from google.adk.memory import InMemoryMemoryService
-    print("🔧 Using InMemoryMemoryService (local testing mode)")
+    print("Using InMemoryMemoryService (local testing mode)")
     return InMemoryMemoryService()
 
 
@@ -83,7 +83,7 @@ def create_agent_engine(
 
     engine_id = agent_engine.api_resource.name.split("/")[-1]
 
-    print(f"✅ Created Agent Engine with ID: {engine_id}")
+    print(f"Created Agent Engine with ID: {engine_id}")
     print(f"   Add this to your .env file: AGENT_ENGINE_ID={engine_id}")
 
     return engine_id
