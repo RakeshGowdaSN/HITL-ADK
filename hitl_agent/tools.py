@@ -11,34 +11,28 @@ def request_human_approval(
 ) -> dict:
     """
     Present a proposal to the human for approval or rejection.
-    This tool stores the proposal in state and waits for human decision.
+    Call this AFTER generating content that needs human review.
     
     Args:
         proposal_content: The content/output that needs human approval
-        proposal_type: Type of proposal (e.g., "code_review", "document", "plan")
+        proposal_type: Type of proposal (e.g., "code", "document", "plan")
         tool_context: ADK tool context for state management
     
     Returns:
         dict with status and instructions for the human
     """
-    # Store proposal in session state for tracking
     tool_context.state["pending_proposal"] = {
         "content": proposal_content,
         "type": proposal_type,
-        "status": "pending_approval"
+        "status": "pending"
     }
-    tool_context.state["awaiting_human_decision"] = True
+    tool_context.state["awaiting_decision"] = True
     
     return {
         "status": "awaiting_approval",
-        "message": f"Proposal Ready for Review\n\n"
-                   f"Type: {proposal_type}\n\n"
-                   f"Content:\n{proposal_content}\n\n"
-                   f"---\n"
-                   f"Please respond with:\n"
-                   f"- 'approve' or 'yes' to proceed to the next step\n"
-                   f"- 'reject: <reason>' to request modifications\n\n"
-                   f"Example: reject: Please add more error handling"
+        "proposal_type": proposal_type,
+        "content": proposal_content,
+        "instructions": "Waiting for user to respond with 'approve' or 'reject: reason'"
     }
 
 
@@ -49,10 +43,11 @@ def process_human_decision(
 ) -> dict:
     """
     Process the human's approval or rejection decision.
+    Call this when user responds with approve/reject.
     
     Args:
         decision: Either "approve" or "reject"
-        rejection_reason: If rejected, the reason provided by human
+        rejection_reason: If rejected, the reason provided by human (can be None)
         tool_context: ADK tool context for state management
     
     Returns:
@@ -63,37 +58,30 @@ def process_human_decision(
     if not pending:
         return {
             "status": "error",
-            "message": "No pending proposal found. Please submit a proposal first."
+            "message": "No pending proposal found. Generate content first using request_human_approval."
         }
     
-    tool_context.state["awaiting_human_decision"] = False
+    tool_context.state["awaiting_decision"] = False
     
     if decision == "approve":
-        # Mark as approved and signal to proceed
         tool_context.state["pending_proposal"]["status"] = "approved"
         tool_context.state["approved_content"] = pending["content"]
-        tool_context.state["proceed_to_next_agent"] = True
         
         return {
             "status": "approved",
-            "message": "Proposal approved. Proceeding to the next step.",
-            "content": pending["content"],
-            "next_action": "process"
+            "message": "Proposal approved. Now call execute_approved_action to finalize.",
+            "content": pending["content"]
         }
     else:
-        # Mark as rejected with reason
         tool_context.state["pending_proposal"]["status"] = "rejected"
-        tool_context.state["rejection_reason"] = rejection_reason
-        tool_context.state["needs_rectification"] = True
+        tool_context.state["rejection_reason"] = rejection_reason or "No reason given"
         tool_context.state["original_content"] = pending["content"]
         
         return {
             "status": "rejected",
-            "message": f"Proposal rejected.\nReason: {rejection_reason}\n\n"
-                       f"Initiating rectification process.",
-            "rejection_reason": rejection_reason,
-            "original_content": pending["content"],
-            "next_action": "rectify"
+            "message": "Proposal rejected. Improve the content based on feedback, then call request_human_approval again.",
+            "rejection_reason": rejection_reason or "No reason given",
+            "original_content": pending["content"]
         }
 
 
@@ -103,42 +91,35 @@ def submit_rectified_output(
     tool_context: ToolContext,
 ) -> dict:
     """
-    Submit rectified content after rejection, ready for re-approval.
+    Submit improved content after rejection.
+    Call this after improving content based on rejection feedback.
     
     Args:
-        rectified_content: The corrected/modified content
-        changes_made: Summary of changes made based on rejection reason
+        rectified_content: The improved content
+        changes_made: Summary of what was changed
         tool_context: ADK tool context for state management
     
     Returns:
         dict prompting for re-approval
     """
-    original = tool_context.state.get("original_content", "")
     reason = tool_context.state.get("rejection_reason", "")
     
-    # Update state for new approval cycle
     tool_context.state["pending_proposal"] = {
         "content": rectified_content,
-        "type": tool_context.state.get("pending_proposal", {}).get("type", "rectified"),
-        "status": "pending_approval",
-        "is_rectification": True,
-        "original_content": original,
+        "type": "rectified",
+        "status": "pending",
         "changes_made": changes_made
     }
-    tool_context.state["awaiting_human_decision"] = True
-    tool_context.state["needs_rectification"] = False
+    tool_context.state["awaiting_decision"] = True
     
     return {
         "status": "awaiting_approval",
-        "message": f"Rectified Proposal Ready for Review\n\n"
-                   f"Original Rejection Reason: {reason}\n\n"
-                   f"Changes Made: {changes_made}\n\n"
-                   f"Rectified Content:\n{rectified_content}\n\n"
-                   f"---\n"
-                   f"Please respond with:\n"
-                   f"- 'approve' or 'yes' to proceed\n"
-                   f"- 'reject: <reason>' for further modifications"
-        }
+        "message": "Rectified content ready for review.",
+        "original_feedback": reason,
+        "changes_made": changes_made,
+        "content": rectified_content,
+        "instructions": "Waiting for user to respond with 'approve' or 'reject: reason'"
+    }
 
 
 def execute_approved_action(
@@ -146,11 +127,11 @@ def execute_approved_action(
     tool_context: ToolContext,
 ) -> dict:
     """
-    Execute the final approved action/content.
-    This is called by the processor agent after approval.
+    Execute/finalize the approved content.
+    Call this after approval to complete the workflow.
     
     Args:
-        action_description: Description of what action was executed
+        action_description: Description of what action was completed
         tool_context: ADK tool context for state management
     
     Returns:
@@ -158,25 +139,27 @@ def execute_approved_action(
     """
     approved_content = tool_context.state.get("approved_content", "")
     
-    # Clear the approval flow state
-    tool_context.state["pending_proposal"] = None
-    tool_context.state["proceed_to_next_agent"] = False
-    tool_context.state["approved_content"] = None
+    if not approved_content:
+        pending = tool_context.state.get("pending_proposal", {})
+        if pending.get("status") == "approved":
+            approved_content = pending.get("content", "")
     
-    # Store in history for memory
+    # Clear state
+    tool_context.state["pending_proposal"] = None
+    tool_context.state["approved_content"] = None
+    tool_context.state["awaiting_decision"] = False
+    
+    # Track history
     history = tool_context.state.get("execution_history", [])
     history.append({
         "content": approved_content,
         "action": action_description,
-        "status": "executed"
+        "status": "completed"
     })
     tool_context.state["execution_history"] = history
     
     return {
-        "status": "executed",
-        "message": f"Action executed successfully.\n\n"
-                   f"Action: {action_description}\n\n"
-                   f"The approved content has been processed.",
+        "status": "completed",
+        "message": f"Task completed: {action_description}",
         "executed_content": approved_content
     }
-
