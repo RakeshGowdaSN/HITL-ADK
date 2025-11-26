@@ -1,20 +1,28 @@
-"""HITL Agent using SequentialAgent + require_confirmation=True.
+"""HITL Agent with SequentialAgent that works properly.
 
-The key is using FunctionTool(..., require_confirmation=True) which makes
-ADK pause and ask for human confirmation before executing the tool.
+Architecture:
+1. Root agent receives user request and stores in state
+2. Delegates to proposal_agent (SequentialAgent)
+3. Sub-agents read from state and generate content
+4. Final approval step with require_confirmation=True
 """
 
-from google.adk.agents import LlmAgent, SequentialAgent, Agent
+from google.adk.agents import Agent, LlmAgent, SequentialAgent
 from google.adk.tools import FunctionTool
 
-from .tools import execute_proposal, submit_rectified
+from .tools import (
+    capture_request,
+    generate_route,
+    generate_accommodation,
+    generate_activities,
+    finalize_proposal,
+)
 from .prompts import (
-    ROOT_AGENT_PROMPT,
-    RECTIFICATION_AGENT_PROMPT,
-    SUB_AGENT_1_PROMPT,
-    SUB_AGENT_2_PROMPT,
-    SUB_AGENT_3_PROMPT,
-    APPROVAL_AGENT_PROMPT,
+    ROOT_PROMPT,
+    ROUTE_PROMPT,
+    ACCOMMODATION_PROMPT,
+    ACTIVITY_PROMPT,
+    FINALIZER_PROMPT,
 )
 
 
@@ -22,42 +30,38 @@ MODEL_ID = "gemini-2.0-flash"
 
 
 # ============================================================================
-# SUB-AGENTS (run sequentially)
+# SUB-AGENTS FOR SEQUENTIAL EXECUTION
+# Each reads from state and generates its part
 # ============================================================================
 
-route_planner = LlmAgent(
-    name="route_planner",
+route_agent = LlmAgent(
+    name="route_agent",
     model=MODEL_ID,
-    instruction=SUB_AGENT_1_PROMPT,
-    output_key="route_plan",
+    instruction=ROUTE_PROMPT,
+    tools=[FunctionTool(func=generate_route)],
 )
 
-accommodation_finder = LlmAgent(
-    name="accommodation_finder",
+accommodation_agent = LlmAgent(
+    name="accommodation_agent",
     model=MODEL_ID,
-    instruction=SUB_AGENT_2_PROMPT,
-    output_key="accommodation_plan",
+    instruction=ACCOMMODATION_PROMPT,
+    tools=[FunctionTool(func=generate_accommodation)],
 )
 
-activity_suggester = LlmAgent(
-    name="activity_suggester",
+activity_agent = LlmAgent(
+    name="activity_agent",
     model=MODEL_ID,
-    instruction=SUB_AGENT_3_PROMPT,
-    output_key="activity_plan",
+    instruction=ACTIVITY_PROMPT,
+    tools=[FunctionTool(func=generate_activities)],
 )
 
-
-# ============================================================================
-# APPROVAL AGENT - uses require_confirmation=True for HITL
-# ============================================================================
-
-approval_agent = LlmAgent(
-    name="approval_agent",
+finalizer_agent = LlmAgent(
+    name="finalizer_agent",
     model=MODEL_ID,
-    instruction=APPROVAL_AGENT_PROMPT,
+    instruction=FINALIZER_PROMPT,
     tools=[
-        # require_confirmation=True makes ADK pause for human approval
-        FunctionTool(func=execute_proposal, require_confirmation=True),
+        # This pauses for human approval
+        FunctionTool(func=finalize_proposal, require_confirmation=True),
     ],
 )
 
@@ -68,59 +72,12 @@ approval_agent = LlmAgent(
 
 proposal_agent = SequentialAgent(
     name="proposal_agent",
-    description="Generates proposal sequentially, then asks for confirmation",
+    description="Runs sub-agents in sequence to build complete proposal",
     sub_agents=[
-        route_planner,
-        accommodation_finder,
-        activity_suggester,
-        approval_agent,
-    ],
-)
-
-
-# ============================================================================
-# RECTIFICATION AGENTS
-# ============================================================================
-
-route_rectifier = LlmAgent(
-    name="route_rectifier",
-    model=MODEL_ID,
-    instruction=SUB_AGENT_1_PROMPT + "\n\nFix the route based on feedback in state['rejection_feedback'].",
-    output_key="route_plan",
-)
-
-accommodation_rectifier = LlmAgent(
-    name="accommodation_rectifier",
-    model=MODEL_ID,
-    instruction=SUB_AGENT_2_PROMPT + "\n\nFix accommodations based on feedback in state['rejection_feedback'].",
-    output_key="accommodation_plan",
-)
-
-activity_rectifier = LlmAgent(
-    name="activity_rectifier",
-    model=MODEL_ID,
-    instruction=SUB_AGENT_3_PROMPT + "\n\nFix activities based on feedback in state['rejection_feedback'].",
-    output_key="activity_plan",
-)
-
-
-# ============================================================================
-# RECTIFICATION AGENT
-# ============================================================================
-
-rectification_agent = Agent(
-    name="rectification_agent",
-    model=MODEL_ID,
-    description="Fixes specific parts based on feedback",
-    instruction=RECTIFICATION_AGENT_PROMPT,
-    tools=[
-        # Also requires confirmation for the rectified version
-        FunctionTool(func=submit_rectified, require_confirmation=True),
-    ],
-    sub_agents=[
-        route_rectifier,
-        accommodation_rectifier,
-        activity_rectifier,
+        route_agent,
+        accommodation_agent,
+        activity_agent,
+        finalizer_agent,
     ],
 )
 
@@ -132,10 +89,12 @@ rectification_agent = Agent(
 root_agent = Agent(
     name="hitl_orchestrator",
     model=MODEL_ID,
-    description="Orchestrates HITL workflow",
-    instruction=ROOT_AGENT_PROMPT,
+    description="Captures user request, runs proposal sequence, handles approval/rejection",
+    instruction=ROOT_PROMPT,
+    tools=[
+        FunctionTool(func=capture_request),
+    ],
     sub_agents=[
         proposal_agent,
-        rectification_agent,
     ],
 )
