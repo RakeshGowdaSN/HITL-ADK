@@ -1,10 +1,10 @@
-"""HITL Agent with SequentialAgent that works properly.
+"""HITL Agent with SequentialAgent + Iterative correction.
 
 Architecture:
-1. Root agent receives user request and stores in state
-2. Delegates to proposal_agent (SequentialAgent)
-3. Sub-agents read from state and generate content
-4. Final approval step with require_confirmation=True
+1. Root agent captures request, delegates to proposal_agent
+2. SequentialAgent builds proposal, asks for approval
+3. If rejected: iterative_agent routes to specific sub-agent to fix
+4. Fixed content goes back for approval
 """
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent
@@ -16,6 +16,11 @@ from .tools import (
     generate_accommodation,
     generate_activities,
     finalize_proposal,
+    store_feedback,
+    fix_route,
+    fix_accommodation,
+    fix_activities,
+    resubmit_proposal,
 )
 from .prompts import (
     ROOT_PROMPT,
@@ -23,6 +28,7 @@ from .prompts import (
     ACCOMMODATION_PROMPT,
     ACTIVITY_PROMPT,
     FINALIZER_PROMPT,
+    ITERATIVE_PROMPT,
 )
 
 
@@ -30,8 +36,7 @@ MODEL_ID = "gemini-2.0-flash"
 
 
 # ============================================================================
-# SUB-AGENTS FOR SEQUENTIAL EXECUTION
-# Each reads from state and generates its part
+# SUB-AGENTS FOR INITIAL PROPOSAL (SequentialAgent)
 # ============================================================================
 
 route_agent = LlmAgent(
@@ -60,7 +65,6 @@ finalizer_agent = LlmAgent(
     model=MODEL_ID,
     instruction=FINALIZER_PROMPT,
     tools=[
-        # This pauses for human approval
         FunctionTool(func=finalize_proposal, require_confirmation=True),
     ],
 )
@@ -72,12 +76,60 @@ finalizer_agent = LlmAgent(
 
 proposal_agent = SequentialAgent(
     name="proposal_agent",
-    description="Runs sub-agents in sequence to build complete proposal",
+    description="Runs sub-agents sequentially to build complete proposal",
     sub_agents=[
         route_agent,
         accommodation_agent,
         activity_agent,
         finalizer_agent,
+    ],
+)
+
+
+# ============================================================================
+# CORRECTION SUB-AGENTS (for iterative_agent)
+# These are separate instances that fix specific parts
+# ============================================================================
+
+route_fixer = LlmAgent(
+    name="route_fixer",
+    model=MODEL_ID,
+    instruction=ROUTE_PROMPT + "\n\nYou are FIXING the route based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    tools=[FunctionTool(func=fix_route)],
+)
+
+accommodation_fixer = LlmAgent(
+    name="accommodation_fixer",
+    model=MODEL_ID,
+    instruction=ACCOMMODATION_PROMPT + "\n\nYou are FIXING accommodations based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    tools=[FunctionTool(func=fix_accommodation)],
+)
+
+activity_fixer = LlmAgent(
+    name="activity_fixer",
+    model=MODEL_ID,
+    instruction=ACTIVITY_PROMPT + "\n\nYou are FIXING activities based on feedback in state['feedback']. Read the feedback and improve accordingly.",
+    tools=[FunctionTool(func=fix_activities)],
+)
+
+
+# ============================================================================
+# ITERATIVE AGENT (handles rejection and routes to correct fixer)
+# ============================================================================
+
+iterative_agent = Agent(
+    name="iterative_agent",
+    model=MODEL_ID,
+    description="Analyzes rejection feedback and routes to specific fixer agent",
+    instruction=ITERATIVE_PROMPT,
+    tools=[
+        FunctionTool(func=store_feedback),
+        FunctionTool(func=resubmit_proposal, require_confirmation=True),
+    ],
+    sub_agents=[
+        route_fixer,
+        accommodation_fixer,
+        activity_fixer,
     ],
 )
 
@@ -89,12 +141,13 @@ proposal_agent = SequentialAgent(
 root_agent = Agent(
     name="hitl_orchestrator",
     model=MODEL_ID,
-    description="Captures user request, runs proposal sequence, handles approval/rejection",
+    description="Orchestrates proposal generation, approval, and iterative correction",
     instruction=ROOT_PROMPT,
     tools=[
         FunctionTool(func=capture_request),
     ],
     sub_agents=[
         proposal_agent,
+        iterative_agent,
     ],
 )
