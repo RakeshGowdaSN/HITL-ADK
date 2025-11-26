@@ -1,4 +1,4 @@
-"""Main HITL Agent - simplified single agent with approval workflow."""
+"""HITL Agent with multi-agent flow: proposal → approval → next agent."""
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
@@ -7,25 +7,63 @@ from .tools import (
     request_human_approval,
     process_human_decision,
     submit_rectified_output,
-    execute_approved_action,
 )
-from .prompts import ROOT_AGENT_PROMPT
+from .prompts import (
+    ROOT_AGENT_PROMPT,
+    PROPOSAL_AGENT_PROMPT,
+    RECTIFICATION_AGENT_PROMPT,
+    NEXT_AGENT_PROMPT,
+)
 
 
-# Default model - can be overridden via environment or config
 MODEL_ID = "gemini-2.0-flash"
 
 
-# Single agent with all HITL tools
-root_agent = Agent(
-    name="hitl_agent",
+# Agent 1: Proposal Agent - generates content and asks for approval
+proposal_agent = Agent(
+    name="proposal_agent",
     model=MODEL_ID,
-    description="Human-in-the-Loop agent that creates content and asks for approval before executing",
-    instruction=ROOT_AGENT_PROMPT,
+    description="Generates content based on user request and submits for human approval",
+    instruction=PROPOSAL_AGENT_PROMPT,
     tools=[
         FunctionTool(func=request_human_approval),
-        FunctionTool(func=process_human_decision),
+    ],
+)
+
+
+# Agent 2: Rectification Agent - improves rejected content
+rectification_agent = Agent(
+    name="rectification_agent",
+    model=MODEL_ID,
+    description="Improves rejected content based on human feedback",
+    instruction=RECTIFICATION_AGENT_PROMPT,
+    tools=[
         FunctionTool(func=submit_rectified_output),
-        FunctionTool(func=execute_approved_action),
+    ],
+)
+
+
+# Agent 3: Next Agent - handles post-approval tasks (customize this for your use case)
+next_agent = Agent(
+    name="next_agent",
+    model=MODEL_ID,
+    description="Executes the next step after proposal is approved",
+    instruction=NEXT_AGENT_PROMPT,
+)
+
+
+# Root Orchestrator - routes to the right agent based on state
+root_agent = Agent(
+    name="hitl_orchestrator",
+    model=MODEL_ID,
+    description="Orchestrates HITL workflow: proposal → approval → next agent",
+    instruction=ROOT_AGENT_PROMPT,
+    tools=[
+        FunctionTool(func=process_human_decision),
+    ],
+    sub_agents=[
+        proposal_agent,
+        rectification_agent,
+        next_agent,
     ],
 )

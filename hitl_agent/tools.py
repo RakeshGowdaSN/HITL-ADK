@@ -51,14 +51,14 @@ def process_human_decision(
         tool_context: ADK tool context for state management
     
     Returns:
-        dict with next action to take
+        dict indicating next action - delegate to next_agent or rectification_agent
     """
     pending = tool_context.state.get("pending_proposal", {})
     
     if not pending:
         return {
             "status": "error",
-            "message": "No pending proposal found. Generate content first using request_human_approval."
+            "message": "No pending proposal found."
         }
     
     tool_context.state["awaiting_decision"] = False
@@ -66,11 +66,13 @@ def process_human_decision(
     if decision == "approve":
         tool_context.state["pending_proposal"]["status"] = "approved"
         tool_context.state["approved_content"] = pending["content"]
+        tool_context.state["approved_type"] = pending["type"]
         
         return {
             "status": "approved",
-            "message": "Proposal approved. Now call execute_approved_action to finalize.",
-            "content": pending["content"]
+            "message": "Proposal approved. Now delegate to next_agent to handle the approved content.",
+            "content": pending["content"],
+            "next_action": "delegate_to_next_agent"
         }
     else:
         tool_context.state["pending_proposal"]["status"] = "rejected"
@@ -79,9 +81,10 @@ def process_human_decision(
         
         return {
             "status": "rejected",
-            "message": "Proposal rejected. Improve the content based on feedback, then call request_human_approval again.",
+            "message": "Proposal rejected. Now delegate to rectification_agent to improve the content.",
             "rejection_reason": rejection_reason or "No reason given",
-            "original_content": pending["content"]
+            "original_content": pending["content"],
+            "next_action": "delegate_to_rectification_agent"
         }
 
 
@@ -106,7 +109,7 @@ def submit_rectified_output(
     
     tool_context.state["pending_proposal"] = {
         "content": rectified_content,
-        "type": "rectified",
+        "type": tool_context.state.get("pending_proposal", {}).get("type", "rectified"),
         "status": "pending",
         "changes_made": changes_made
     }
@@ -119,47 +122,4 @@ def submit_rectified_output(
         "changes_made": changes_made,
         "content": rectified_content,
         "instructions": "Waiting for user to respond with 'approve' or 'reject: reason'"
-    }
-
-
-def execute_approved_action(
-    action_description: str,
-    tool_context: ToolContext,
-) -> dict:
-    """
-    Execute/finalize the approved content.
-    Call this after approval to complete the workflow.
-    
-    Args:
-        action_description: Description of what action was completed
-        tool_context: ADK tool context for state management
-    
-    Returns:
-        dict with execution result
-    """
-    approved_content = tool_context.state.get("approved_content", "")
-    
-    if not approved_content:
-        pending = tool_context.state.get("pending_proposal", {})
-        if pending.get("status") == "approved":
-            approved_content = pending.get("content", "")
-    
-    # Clear state
-    tool_context.state["pending_proposal"] = None
-    tool_context.state["approved_content"] = None
-    tool_context.state["awaiting_decision"] = False
-    
-    # Track history
-    history = tool_context.state.get("execution_history", [])
-    history.append({
-        "content": approved_content,
-        "action": action_description,
-        "status": "completed"
-    })
-    tool_context.state["execution_history"] = history
-    
-    return {
-        "status": "completed",
-        "message": f"Task completed: {action_description}",
-        "executed_content": approved_content
     }
