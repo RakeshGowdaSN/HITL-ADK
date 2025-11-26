@@ -1,0 +1,14 @@
+# Rename this file to .env and fill in your values
+
+# VertexAI Express Mode Configuration
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
+GOOGLE_API_KEY=YOUR_EXPRESS_MODE_API_KEY_HERE
+
+# Optional: For full VertexAI (not express mode)
+# GOOGLE_CLOUD_PROJECT=your-project-id
+# GOOGLE_CLOUD_LOCATION=us-central1
+
+# Agent Engine ID (created via VertexAI SDK)
+# Required for VertexAiSessionService and VertexAiMemoryBankService
+AGENT_ENGINE_ID=your-agent-engine-id
+
