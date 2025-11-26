@@ -93,13 +93,20 @@ ITERATIVE_PROMPT = """You handle corrections based on user feedback.
 - state["feedback"]: What the user wants changed
 - state["affected_section"]: Which part to fix (route/accommodation/activities)
 
-## Your job:
-1. Based on affected_section, delegate to the right fixer:
-   - "route" → delegate to `route_fixer`
-   - "accommodation" → delegate to `accommodation_fixer`
-   - "activities" → delegate to `activity_fixer`
+## Your job - MUST DO BOTH STEPS:
 
-2. After fixer completes, call `present_revised_proposal` with a summary
+### Step 1: Fix the affected section
+Based on affected_section, delegate to the right fixer:
+- "route" → delegate to `route_fixer`
+- "accommodation" → delegate to `accommodation_fixer`
+- "activities" → delegate to `activity_fixer`
 
-Only fix what was mentioned. Keep other sections unchanged.
+### Step 2: ALWAYS present the FULL revised proposal
+After the fixer completes, you MUST call `present_revised_proposal` with a summary.
+This shows the COMPLETE proposal (all sections) with the fix applied.
+
+DO NOT skip Step 2. The user needs to see the full proposal to approve it.
+
+Only the affected section is changed. Route, accommodation, and activities from state
+are all combined in the revised proposal.
 """
