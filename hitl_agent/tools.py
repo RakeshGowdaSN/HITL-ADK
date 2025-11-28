@@ -4,6 +4,53 @@ from google.adk.tools import ToolContext
 
 
 # ============================================================================
+# RECALL / SHOW PREVIOUS TRIPS
+# ============================================================================
+
+def show_final_plan(
+    tool_context: ToolContext,
+) -> str:
+    """Show the finalized trip plan from current session."""
+    final_plan = tool_context.state.get("final_proposal")
+    if final_plan:
+        return f"Here is your finalized trip plan:\n\n{final_plan}"
+    
+    pending = tool_context.state.get("pending_proposal")
+    if pending:
+        return f"You have a pending proposal (not yet approved):\n\n{pending}"
+    
+    return "No trip plan found in current session. Would you like to plan a new trip?"
+
+
+def recall_trip_info(
+    tool_context: ToolContext,
+) -> str:
+    """Recall trip information from current session state."""
+    request = tool_context.state.get("request", {})
+    route = tool_context.state.get("route", "")
+    accommodation = tool_context.state.get("accommodation", "")
+    activities = tool_context.state.get("activities", "")
+    finalized = tool_context.state.get("trip_finalized", False)
+    
+    if not request:
+        return "No trip information found. Would you like to plan a new trip?"
+    
+    info = f"Trip to {request.get('destination', 'unknown')} from {request.get('start_location', 'unknown')}\n"
+    info += f"Duration: {request.get('duration_days', '?')} days\n"
+    info += f"Preferences: {request.get('preferences', 'none')}\n"
+    info += f"Status: {'Finalized' if finalized else 'In progress'}\n\n"
+    
+    if route:
+        info += f"{route}\n\n"
+    if accommodation:
+        info += f"{accommodation}\n\n"
+    if activities:
+        info += f"{activities}\n"
+    
+    return info
+
+
+# ============================================================================
 # INITIAL REQUEST CAPTURE
 # ============================================================================
 

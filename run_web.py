@@ -290,16 +290,19 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
         
         # Load memory for this user
         try:
-            memories = await memory_service.search_memory(
+            memory_response = await memory_service.search_memory(
                 app_name="hitl_agent",
                 user_id=user_id,
                 query="previous trip plans and preferences",
             )
-            if memories:
+            # SearchMemoryResponse has a .memories attribute
+            memory_list = getattr(memory_response, 'memories', []) or []
+            if memory_list:
                 await websocket.send_json({
                     "type": "memory_loaded",
-                    "count": len(memories),
+                    "count": len(memory_list),
                 })
+                print(f"Loaded {len(memory_list)} memories for user {user_id}")
         except Exception as e:
             print(f"Memory search error: {e}")
         

@@ -22,6 +22,8 @@ from .tools import (
     fix_accommodation,
     fix_activities,
     present_revised_proposal,
+    show_final_plan,
+    recall_trip_info,
 )
 from .prompts import (
     ROOT_PROMPT,
@@ -117,6 +119,8 @@ root_agent = Agent(
         FunctionTool(func=capture_request),
         FunctionTool(func=process_approval),
         FunctionTool(func=process_rejection),
+        FunctionTool(func=show_final_plan),
+        FunctionTool(func=recall_trip_info),
     ],
     sub_agents=[
         proposal_agent,
