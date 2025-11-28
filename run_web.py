@@ -186,7 +186,8 @@ HTML_PAGE = """
         localStorage.setItem('userId', userId);
         
         function connect() {
-            const wsUrl = `ws://${window.location.host}/ws/${userId}` + (sessionId ? `?session_id=${sessionId}` : '');
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws/${userId}` + (sessionId ? `?session_id=${sessionId}` : '');
             ws = new WebSocket(wsUrl);
             
             ws.onopen = () => {
