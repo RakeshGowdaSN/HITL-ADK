@@ -116,6 +116,7 @@ def process_approval(
     tool_context.state["final_proposal"] = proposal
     tool_context.state["awaiting_approval"] = False
     tool_context.state["trip_finalized"] = True
+    tool_context.state["approved"] = True  # Triggers memory save
     
     return "Trip plan approved and finalized! Have a great trip!"
 

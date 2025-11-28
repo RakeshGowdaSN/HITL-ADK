@@ -87,19 +87,35 @@ python setup_agent_engine.py
 
 Add the returned `AGENT_ENGINE_ID` to your `.env` file.
 
-### 4. Run Locally
+### 4. Run Locally (CLI)
 
 ```bash
 uv run python run_local.py
 ```
 
-### 5. Run with ADK Web UI
+### 5. Run with Web UI (Recommended for Memory Persistence)
+
+Use the custom web interface that properly integrates VertexAI Memory Bank:
+
+```bash
+uv run python run_web.py
+```
+
+Navigate to `http://localhost:8080`
+
+**Why not `adk web`?** The standard `adk web` command uses its own Runner with InMemory services.
+Our `run_web.py` properly configures the Runner with VertexAI Session and Memory services for
+cross-session persistence.
+
+### 6. (Optional) Run with ADK Web UI
+
+If you just want quick testing without memory persistence:
 
 ```bash
 uv run adk web
 ```
 
-Navigate to `http://localhost:8000`
+Navigate to `http://localhost:8000` (Note: Memory will NOT persist across sessions)
 
 ## Chat Commands
 
@@ -160,7 +176,7 @@ gcloud run deploy hitl-agent \
   --allow-unauthenticated
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 hitl-adk/
@@ -171,7 +187,8 @@ hitl-adk/
 │   ├── callbacks.py     # Response parsing callbacks
 │   ├── prompts.py       # System prompts
 │   └── services.py      # VertexAI service configuration
-├── run_local.py         # Local testing script
+├── run_local.py         # Local CLI testing
+├── run_web.py           # Web UI with Memory Bank integration
 ├── setup_agent_engine.py # Agent Engine setup
 ├── pyproject.toml       # Dependencies
 ├── Dockerfile           # Cloud Run deployment
@@ -198,6 +215,37 @@ For pure local testing without VertexAI, simply don't set `AGENT_ENGINE_ID`:
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
 # API key/service account not configured - uses InMemory services
 ```
+
+## Memory Persistence
+
+### How Memory Bank Works
+
+VertexAI Memory Bank stores conversation summaries that persist across sessions:
+
+1. **Session Storage**: During a session, all conversation turns are stored
+2. **Memory Save**: When a trip is approved, the session is saved to Memory Bank
+3. **Memory Recall**: On new sessions, the agent can recall previous trips/preferences
+
+### When Memory is Saved
+
+Memory is automatically saved to VertexAI Memory Bank when:
+- User approves a trip plan (`process_approval` is called)
+- User disconnects from the web interface
+
+### Testing Memory Persistence
+
+1. Start `run_web.py` with `AGENT_ENGINE_ID` configured
+2. Plan and approve a trip
+3. Click "New Session" or refresh
+4. Ask "What trips have I planned before?"
+5. The agent should recall your previous trip from Memory Bank
+
+### Memory Service Types
+
+| Service | When Used | Persistence |
+|---------|-----------|-------------|
+| `InMemoryMemoryService` | No `AGENT_ENGINE_ID` | Session only |
+| `VertexAiMemoryBankService` | With `AGENT_ENGINE_ID` | Cross-session |
 
 ## References
 
