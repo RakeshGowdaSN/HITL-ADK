@@ -107,7 +107,37 @@ Navigate to `http://localhost:8080`
 Our `run_web.py` properly configures the Runner with VertexAI Session and Memory services for
 cross-session persistence.
 
-### 6. (Optional) Run with ADK Web UI
+### 6. Run with REST API (No WebSocket)
+
+For integration with other services or when WebSocket isn't needed:
+
+```bash
+uv run python run_rest.py
+```
+
+Endpoints:
+- `POST /chat` - Send message to agent
+- `POST /end-session/{user_id}/{session_id}` - Save session to Memory Bank
+- `GET /memories/{user_id}` - Retrieve user's memories
+- `GET /health` - Health check
+
+Example:
+```bash
+# Start conversation
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123", "message": "Plan a trip to Kerala"}'
+
+# Continue with session_id from response
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123", "session_id": "abc123", "message": "approve"}'
+
+# Get memories
+curl http://localhost:8080/memories/user123
+```
+
+### 7. (Optional) Run with ADK Web UI
 
 If you just want quick testing without memory persistence:
 
@@ -188,7 +218,8 @@ hitl-adk/
 │   ├── prompts.py       # System prompts
 │   └── services.py      # VertexAI service configuration
 ├── run_local.py         # Local CLI testing
-├── run_web.py           # Web UI with Memory Bank integration
+├── run_web.py           # WebSocket UI with Memory Bank
+├── run_rest.py          # REST API (no WebSocket)
 ├── setup_agent_engine.py # Agent Engine setup
 ├── pyproject.toml       # Dependencies
 ├── Dockerfile           # Cloud Run deployment
