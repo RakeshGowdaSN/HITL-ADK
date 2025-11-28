@@ -8,7 +8,7 @@ Flow:
 """
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent
-from google.adk.tools import FunctionTool
+from google.adk.tools import FunctionTool, load_memory
 
 from .tools import (
     capture_request,
@@ -121,6 +121,7 @@ root_agent = Agent(
         FunctionTool(func=process_rejection),
         FunctionTool(func=show_final_plan),
         FunctionTool(func=recall_trip_info),
+        load_memory,  # ADK built-in tool to retrieve memories from Memory Bank
     ],
     sub_agents=[
         proposal_agent,
