@@ -1,0 +1,9 @@
+# Proposal Agent dependencies
+google-adk[vertexai]>=1.0.0
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+a2a-sdk>=0.2.0
+click>=8.0.0
+uvicorn>=0.22.0
+starlette>=0.27.0
+

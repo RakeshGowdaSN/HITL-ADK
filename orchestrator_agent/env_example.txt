@@ -1,0 +1,19 @@
+# Orchestrator Agent Environment Variables
+# Rename this file to .env
+
+# VertexAI Configuration
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+
+# Agent Engine ID (required for Memory Bank)
+AGENT_ENGINE_ID=your-agent-engine-id
+
+# Model Configuration
+MODEL_ID=gemini-2.5-pro
+
+# Remote A2A Agent URLs (Cloud Run deployments)
+PROPOSAL_AGENT_URL=https://proposal-agent-service-XXXXXX.us-east1.run.app/.well-known/agent.json
+ITERATIVE_AGENT_URL=https://iterative-agent-service-XXXXXX.us-east1.run.app/.well-known/agent.json
+

@@ -1,0 +1,19 @@
+# Iterative Agent Environment Variables
+# Rename this file to .env (for local testing)
+# Set as environment variables in Cloud Run
+
+# VertexAI Configuration
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+
+# Agent Engine ID (required for Memory Bank)
+AGENT_ENGINE_ID=your-agent-engine-id
+
+# Model Configuration
+MODEL_ID=gemini-2.5-pro
+
+# Service URL (set automatically by Cloud Run, or set for local testing)
+SERVICE_URL=http://localhost:8081
+
