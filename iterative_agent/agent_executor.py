@@ -50,6 +50,25 @@ class ADKAgentExecutor(AgentExecutor):
             memory_service=self.memory_service,
         )
 
+    def _get_task_info(self, context: RequestContext):
+        """Safely extract task_id and context_id from RequestContext."""
+        # Try different attribute patterns based on A2A SDK version
+        task_id = (
+            getattr(context, 'task_id', None) or
+            getattr(getattr(context, 'task', None), 'id', None) or
+            getattr(context, 'id', None) or
+            str(uuid.uuid4())
+        )
+        
+        context_id = (
+            getattr(context, 'context_id', None) or
+            getattr(getattr(context, 'task', None), 'context_id', None) or
+            getattr(context, 'session_id', None) or
+            "default_user"
+        )
+        
+        return task_id, context_id
+
     async def cancel(
         self,
         context: RequestContext,
@@ -71,11 +90,11 @@ class ADKAgentExecutor(AgentExecutor):
 
         query = context.get_user_input()
         
-        # Extract user_id from A2A context
-        # context_id is typically the user identifier in A2A protocol
-        user_id = context.task.context_id or "default_user"
+        # Safely extract task info from context
+        task_id, context_id = self._get_task_info(context)
+        user_id = context_id
         
-        updater = TaskUpdater(event_queue, context.task.id, context.task.context_id)
+        updater = TaskUpdater(event_queue, task_id, context_id)
         
         await updater.update_status(TaskState.working, self.status_message)
 
@@ -144,8 +163,8 @@ class ADKAgentExecutor(AgentExecutor):
                 TaskState.failed,
                 new_agent_text_message(
                     f'Error: {e!s}', 
-                    context.task.context_id, 
-                    context.task.id
+                    context_id, 
+                    task_id
                 ),
                 final=True,
             )
