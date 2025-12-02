@@ -96,7 +96,11 @@ class ADKAgentExecutor(AgentExecutor):
         
         updater = TaskUpdater(event_queue, task_id, context_id)
         
-        await updater.update_status(TaskState.working, self.status_message)
+        # update_status expects a Message object, not a string
+        await updater.update_status(
+            TaskState.working, 
+            new_agent_text_message(self.status_message, context_id, task_id)
+        )
 
         try:
             # Create a new session for this execution
