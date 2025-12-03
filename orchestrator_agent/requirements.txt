@@ -3,3 +3,7 @@ google-adk[vertexai]>=1.0.0
 google-genai>=1.0.0
 python-dotenv>=1.0.0
 
+# FastAPI for REST and WebSocket endpoints
+fastapi>=0.100.0
+uvicorn>=0.22.0
+websockets>=11.0.0
