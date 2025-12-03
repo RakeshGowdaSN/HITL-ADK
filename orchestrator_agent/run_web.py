@@ -4,6 +4,11 @@ A modern chat UI with WebSocket for real-time communication.
 
 Usage:
     cd orchestrator_agent
+    
+    # Option 1: Run with uvicorn (recommended, supports auto-reload)
+    uvicorn run_web:app --reload --host 0.0.0.0 --port 8080
+    
+    # Option 2: Run directly
     python run_web.py
     
 Then open http://localhost:8080 in your browser.

@@ -4,6 +4,11 @@ Exposes the orchestrator agent as FastAPI endpoints.
 
 Usage:
     cd orchestrator_agent
+    
+    # Option 1: Run with uvicorn (recommended, supports auto-reload)
+    uvicorn run_rest:app --reload --host 0.0.0.0 --port 8080
+    
+    # Option 2: Run directly
     python run_rest.py
     
 Endpoints:
