@@ -12,7 +12,8 @@ from google.genai import types
 from google.adk.memory import VertexAiMemoryBankService
 from google.adk.sessions import VertexAiSessionService
 
-from agent import root_agent
+# Use factory function instead of importing root_agent directly
+from agent import create_root_agent
 
 
 def get_services():
@@ -31,6 +32,10 @@ def get_services():
 async def main():
     """Run interactive chat with the orchestrator."""
     session_service, memory_service = get_services()
+    
+    # Create fresh agent instance inside async context
+    # This prevents 'client has been closed' errors
+    root_agent = create_root_agent()
     
     runner = Runner(
         agent=root_agent,
@@ -137,4 +142,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
