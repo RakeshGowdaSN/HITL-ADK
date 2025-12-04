@@ -25,16 +25,22 @@ def store_proposal_response(
 def show_final_plan(
     tool_context: ToolContext,
 ) -> str:
-    """Show the finalized trip plan from current session."""
+    """
+    Show the current trip plan from this session.
+    Use this when user asks: "show my plan", "what's my plan", "current plan", "show trip"
+    NO PARAMETERS NEEDED - just call this function.
+    """
     final_plan = tool_context.state.get("final_proposal")
     if final_plan:
-        return f"Here is your finalized trip plan:\n\n{final_plan}"
+        destination = tool_context.state.get("trip_destination", "")
+        return f"Here is your finalized trip plan{' to ' + destination if destination else ''}:\n\n{final_plan}"
     
     pending = tool_context.state.get("pending_proposal")
     if pending:
-        return f"You have a pending proposal (not yet approved):\n\n{pending}"
+        destination = tool_context.state.get("trip_destination", "")
+        return f"You have a pending proposal{' to ' + destination if destination else ''} (awaiting approval):\n\n{pending}\n\nReply 'approve' to confirm or provide feedback to change."
     
-    return "No trip plan found in current session. Would you like to plan a new trip?"
+    return "No trip plan in this session yet. Say something like 'Plan 5 day trip to Kerala from Bangalore' to start."
 
 
 def recall_trip_info(
