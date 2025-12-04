@@ -158,6 +158,16 @@ async def chat(request: ChatRequest):
         awaiting_approval = state.get("awaiting_approval", False)
         trip_finalized = state.get("trip_finalized", False)
         
+        # Store conversation content in state for memory extraction
+        conversation_history = state.get("conversation_history", [])
+        conversation_history.append({
+            "user": request.message,
+            "agent": response_text,
+        })
+        session.state["conversation_history"] = conversation_history[-10:]
+        session.state["last_user_message"] = request.message
+        session.state["last_agent_response"] = response_text
+        
         # ALWAYS save to memory after every interaction
         try:
             await memory_service.add_session_to_memory(session)

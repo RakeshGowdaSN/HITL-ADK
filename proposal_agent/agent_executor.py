@@ -183,8 +183,18 @@ class ADKAgentExecutor(AgentExecutor):
                 session_id=session.id,
             )
             
+            # Store conversation content in state for memory extraction
+            state = session.state or {}
+            conversation_history = state.get("conversation_history", [])
+            conversation_history.append({
+                "user_request": query,
+                "agent_response": response_text,
+                "agent": "proposal_agent",
+            })
+            session.state["conversation_history"] = conversation_history[-10:]
+            session.state["last_proposal"] = response_text
+            
             # ALWAYS save to Memory Bank after every execution
-            # This ensures trip proposals are persisted regardless of approval status
             try:
                 await self.memory_service.add_session_to_memory(session)
                 print(f"[Proposal Agent] Session {session.id} saved to Memory Bank")

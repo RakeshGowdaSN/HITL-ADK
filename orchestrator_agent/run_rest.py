@@ -214,8 +214,19 @@ async def chat(request: ChatRequest):
         awaiting_approval = state.get("awaiting_approval", False)
         trip_finalized = state.get("trip_finalized", False)
         
+        # Store conversation content in state for memory extraction
+        # Memory Bank extracts facts from state, so we need to include the conversation
+        conversation_history = state.get("conversation_history", [])
+        conversation_history.append({
+            "user": request.message,
+            "agent": response_text,
+        })
+        # Keep last 10 interactions to avoid state bloat
+        session.state["conversation_history"] = conversation_history[-10:]
+        session.state["last_user_message"] = request.message
+        session.state["last_agent_response"] = response_text
+        
         # ALWAYS save to memory after every interaction
-        # This ensures trip proposals, revisions, and approvals are all persisted
         try:
             await memory_service.add_session_to_memory(session)
             print(f"[Memory] Session {session.id} saved to Memory Bank")
