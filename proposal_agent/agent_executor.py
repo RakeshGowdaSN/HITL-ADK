@@ -55,7 +55,7 @@ class ADKAgentExecutor(AgentExecutor):
         )
 
     def _get_task_info(self, context: RequestContext):
-        """Safely extract task_id and context_id from RequestContext."""
+        """Safely extract task_id, context_id, and session_id from RequestContext."""
         # Try different attribute patterns based on A2A SDK version
         task_id = (
             getattr(context, 'task_id', None) or
@@ -71,7 +71,22 @@ class ADKAgentExecutor(AgentExecutor):
             "default_user"
         )
         
-        return task_id, context_id
+        # Try to extract session_id from context for session sharing
+        session_id = (
+            getattr(context, 'session_id', None) or
+            getattr(getattr(context, 'task', None), 'session_id', None) or
+            None
+        )
+        
+        return task_id, context_id, session_id
+    
+    def _extract_session_from_message(self, message: str) -> str | None:
+        """Extract session_id from message if passed in format [SESSION:xxx]."""
+        import re
+        match = re.search(r'\[SESSION:([^\]]+)\]', message)
+        if match:
+            return match.group(1)
+        return None
 
     async def cancel(
         self,
@@ -95,8 +110,15 @@ class ADKAgentExecutor(AgentExecutor):
         query = context.get_user_input()
         
         # Safely extract task info from context
-        task_id, context_id = self._get_task_info(context)
+        task_id, context_id, shared_session_id = self._get_task_info(context)
         user_id = context_id
+        
+        # Also check if session_id is embedded in the message
+        if not shared_session_id:
+            shared_session_id = self._extract_session_from_message(query)
+            if shared_session_id:
+                # Remove the session marker from query
+                query = query.replace(f'[SESSION:{shared_session_id}]', '').strip()
         
         updater = TaskUpdater(event_queue, task_id, context_id)
         
@@ -107,13 +129,26 @@ class ADKAgentExecutor(AgentExecutor):
         )
 
         try:
-            # Create a new session for this execution
-            session = await self.session_service.create_session(
-                app_name=self.app_name,
-                user_id=user_id,
-            )
+            # Try to reuse existing session if session_id was passed
+            session = None
+            if shared_session_id:
+                try:
+                    session = await self.session_service.get_session(
+                        app_name=self.app_name,
+                        user_id=user_id,
+                        session_id=shared_session_id,
+                    )
+                    print(f"[Proposal Agent] Reusing shared session {session.id} for user {user_id}")
+                except Exception as e:
+                    print(f"[Proposal Agent] Could not get shared session: {e}")
             
-            print(f"[Proposal Agent] Created session {session.id} for user {user_id}")
+            # Create new session if no shared session available
+            if not session:
+                session = await self.session_service.create_session(
+                    app_name=self.app_name,
+                    user_id=user_id,
+                )
+                print(f"[Proposal Agent] Created new session {session.id} for user {user_id}")
             
             # Build the content message
             content = types.Content(

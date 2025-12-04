@@ -11,6 +11,7 @@ from google.adk.tools import FunctionTool, load_memory
 
 from .tools import (
     capture_request,
+    get_delegation_message,
     process_approval,
     process_rejection,
     show_final_plan,
@@ -74,6 +75,7 @@ def create_root_agent():
         instruction=ROOT_PROMPT,
         tools=[
             FunctionTool(func=capture_request),
+            FunctionTool(func=get_delegation_message),
             FunctionTool(func=store_proposal_response),
             FunctionTool(func=process_approval),
             FunctionTool(func=process_rejection),

@@ -80,7 +80,36 @@ def capture_request(
         "preferences": preferences,
     }
     tool_context.state["awaiting_approval"] = False
+    
+    # Store session info for sharing with sub-agents
+    session_id = getattr(tool_context, 'session_id', None)
+    if session_id:
+        tool_context.state["orchestrator_session_id"] = session_id
+    
     return f"Request captured for {destination}. Delegating to proposal_agent."
+
+
+def get_delegation_message(
+    task_description: str,
+    tool_context: ToolContext,
+) -> str:
+    """
+    Get a message with session marker for delegating to sub-agents.
+    Call this before delegating to proposal_agent or iterative_agent.
+    
+    Args:
+        task_description: What to tell the sub-agent to do
+    
+    Returns:
+        Message with [SESSION:xxx] marker for session sharing
+    """
+    session_id = tool_context.state.get("orchestrator_session_id")
+    if not session_id:
+        session_id = getattr(tool_context, 'session_id', None)
+    
+    if session_id:
+        return f"[SESSION:{session_id}] {task_description}"
+    return task_description
 
 
 def process_approval(
