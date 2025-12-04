@@ -183,14 +183,13 @@ class ADKAgentExecutor(AgentExecutor):
                 session_id=session.id,
             )
             
-            # Save to Memory Bank if trip was finalized/approved
-            state = session.state or {}
-            if state.get("trip_finalized") or state.get("approved"):
-                try:
-                    await self.memory_service.add_session_to_memory(session)
-                    print(f"[Iterative Agent] Session {session.id} saved to Memory Bank")
-                except Exception as mem_error:
-                    print(f"[Iterative Agent] Warning: Could not save to memory: {mem_error}")
+            # ALWAYS save to Memory Bank after every execution
+            # This ensures revised proposals are persisted regardless of approval status
+            try:
+                await self.memory_service.add_session_to_memory(session)
+                print(f"[Iterative Agent] Session {session.id} saved to Memory Bank")
+            except Exception as mem_error:
+                print(f"[Iterative Agent] Warning: Could not save to memory: {mem_error}")
 
             # Add response as artifact
             await updater.add_artifact(

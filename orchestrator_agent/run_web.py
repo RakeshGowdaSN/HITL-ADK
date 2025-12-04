@@ -576,16 +576,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
                     session_id=session.id,
                 )
                 
-                # Save to memory on approval
-                if session.state and session.state.get("approved"):
-                    try:
-                        await memory_service.add_session_to_memory(session)
-                        print(f"[Memory] Session {session.id} saved to Memory Bank")
-                        # Clear flag
-                        session.state["approved"] = False
-                        session.state["memory_saved"] = True
-                    except Exception as e:
-                        print(f"[Memory] Error saving: {e}")
+                # ALWAYS save to memory after every interaction
+                try:
+                    await memory_service.add_session_to_memory(session)
+                    print(f"[Memory] Session {session.id} saved to Memory Bank")
+                except Exception as e:
+                    print(f"[Memory] Error saving: {e}")
                         
             except Exception as e:
                 print(f"[WS] Error processing message: {e}")

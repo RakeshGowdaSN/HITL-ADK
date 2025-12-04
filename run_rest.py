@@ -158,13 +158,12 @@ async def chat(request: ChatRequest):
         awaiting_approval = state.get("awaiting_approval", False)
         trip_finalized = state.get("trip_finalized", False)
         
-        # Auto-save to memory on approval
-        if state.get("approved"):
-            try:
-                await memory_service.add_session_to_memory(session)
-                print(f"Session {session.id} saved to memory bank")
-            except Exception as e:
-                print(f"Error saving to memory: {e}")
+        # ALWAYS save to memory after every interaction
+        try:
+            await memory_service.add_session_to_memory(session)
+            print(f"Session {session.id} saved to memory bank")
+        except Exception as e:
+            print(f"Error saving to memory: {e}")
         
         return ChatResponse(
             session_id=session.id,
