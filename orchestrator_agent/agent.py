@@ -15,6 +15,7 @@ from .tools import (
     process_rejection,
     show_final_plan,
     recall_trip_info,
+    store_proposal_response,
 )
 from .prompts import ROOT_PROMPT
 
@@ -73,6 +74,7 @@ def create_root_agent():
         instruction=ROOT_PROMPT,
         tools=[
             FunctionTool(func=capture_request),
+            FunctionTool(func=store_proposal_response),
             FunctionTool(func=process_approval),
             FunctionTool(func=process_rejection),
             FunctionTool(func=show_final_plan),

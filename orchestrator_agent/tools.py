@@ -3,6 +3,25 @@
 from google.adk.tools import ToolContext
 
 
+def store_proposal_response(
+    proposal_text: str,
+    destination: str,
+    tool_context: ToolContext,
+) -> str:
+    """
+    Store the proposal response from sub-agent in orchestrator's session.
+    Call this AFTER receiving proposal_agent or iterative_agent response.
+    
+    Args:
+        proposal_text: The full trip proposal text to store
+        destination: The trip destination
+    """
+    tool_context.state["pending_proposal"] = proposal_text
+    tool_context.state["trip_destination"] = destination
+    tool_context.state["awaiting_approval"] = True
+    return f"Proposal for {destination} stored. Please review and say 'approve' or provide feedback."
+
+
 def show_final_plan(
     tool_context: ToolContext,
 ) -> str:
