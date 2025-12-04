@@ -8,6 +8,7 @@ load_dotenv()
 from google.adk.agents import Agent
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 from google.adk.tools import FunctionTool, load_memory
+from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 
 from .tools import (
     capture_request,
@@ -32,6 +33,29 @@ ITERATIVE_AGENT_URL = os.getenv(
     "ITERATIVE_AGENT_URL", 
     "https://iterative-agent-service.us-east1.run.app/.well-known/agent.json"
 )
+
+
+# ============================================================================
+# CALLBACK: Auto-save session to memory after each agent turn
+# This is the recommended approach from ADK docs
+# ============================================================================
+
+async def auto_save_to_memory_callback(callback_context):
+    """
+    Automatically save session to Memory Bank after each agent turn.
+    Memory Bank extracts meaningful information from conversation events.
+    
+    Reference: https://google.github.io/adk-docs/sessions/memory/
+    """
+    try:
+        memory_service = callback_context._invocation_context.memory_service
+        session = callback_context._invocation_context.session
+        
+        if memory_service and session:
+            await memory_service.add_session_to_memory(session)
+            print(f"[Memory Callback] Session {session.id} saved to Memory Bank")
+    except Exception as e:
+        print(f"[Memory Callback] Error saving to memory: {e}")
 
 
 # ============================================================================
@@ -74,6 +98,7 @@ def create_root_agent():
         description="Orchestrates trip planning with human approval using remote A2A agents",
         instruction=ROOT_PROMPT,
         tools=[
+            PreloadMemoryTool(),  # Auto-loads memory at start of each turn
             FunctionTool(func=capture_request),
             FunctionTool(func=get_delegation_message),
             FunctionTool(func=store_proposal_response),
@@ -81,12 +106,13 @@ def create_root_agent():
             FunctionTool(func=process_rejection),
             FunctionTool(func=show_final_plan),
             FunctionTool(func=recall_trip_info),
-            load_memory,  # ADK built-in tool to retrieve memories from Memory Bank
+            load_memory,  # Manual memory retrieval tool
         ],
         sub_agents=[
             proposal_agent,
             iterative_agent,
         ],
+        after_agent_callback=auto_save_to_memory_callback,  # Auto-save after each turn
     )
 
 

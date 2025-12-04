@@ -9,6 +9,7 @@ Flow:
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent
 from google.adk.tools import FunctionTool, load_memory
+from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 
 from .tools import (
     capture_request,
@@ -36,6 +37,28 @@ from .prompts import (
 
 
 MODEL_ID = "gemini-2.0-flash"
+
+
+# ============================================================================
+# CALLBACK: Auto-save session to memory after each agent turn
+# This is the recommended approach from ADK docs
+# Reference: https://google.github.io/adk-docs/sessions/memory/
+# ============================================================================
+
+async def auto_save_to_memory_callback(callback_context):
+    """
+    Automatically save session to Memory Bank after each agent turn.
+    Memory Bank extracts meaningful information from conversation events.
+    """
+    try:
+        memory_service = callback_context._invocation_context.memory_service
+        session = callback_context._invocation_context.session
+        
+        if memory_service and session:
+            await memory_service.add_session_to_memory(session)
+            print(f"[Memory Callback] Session {session.id} saved to Memory Bank")
+    except Exception as e:
+        print(f"[Memory Callback] Error saving to memory: {e}")
 
 
 # ============================================================================
@@ -116,15 +139,17 @@ root_agent = Agent(
     description="Orchestrates trip planning with human approval",
     instruction=ROOT_PROMPT,
     tools=[
+        PreloadMemoryTool(),  # Auto-loads memory at start of each turn
         FunctionTool(func=capture_request),
         FunctionTool(func=process_approval),
         FunctionTool(func=process_rejection),
         FunctionTool(func=show_final_plan),
         FunctionTool(func=recall_trip_info),
-        load_memory,  # ADK built-in tool to retrieve memories from Memory Bank
+        load_memory,  # Manual memory retrieval tool
     ],
     sub_agents=[
         proposal_agent,
         iterative_agent,
     ],
+    after_agent_callback=auto_save_to_memory_callback,  # Auto-save after each turn
 )

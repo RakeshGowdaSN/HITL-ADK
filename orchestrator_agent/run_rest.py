@@ -214,24 +214,9 @@ async def chat(request: ChatRequest):
         awaiting_approval = state.get("awaiting_approval", False)
         trip_finalized = state.get("trip_finalized", False)
         
-        # Store conversation content in state for memory extraction
-        # Memory Bank extracts facts from state, so we need to include the conversation
-        conversation_history = state.get("conversation_history", [])
-        conversation_history.append({
-            "user": request.message,
-            "agent": response_text,
-        })
-        # Keep last 10 interactions to avoid state bloat
-        session.state["conversation_history"] = conversation_history[-10:]
-        session.state["last_user_message"] = request.message
-        session.state["last_agent_response"] = response_text
-        
-        # ALWAYS save to memory after every interaction
-        try:
-            await memory_service.add_session_to_memory(session)
-            print(f"[Memory] Session {session.id} saved to Memory Bank")
-        except Exception as e:
-            print(f"[Memory] Error saving to memory: {e}")
+        # Note: Memory is automatically saved via after_agent_callback in the agent
+        # The callback extracts info from session events (conversation history)
+        # See: https://google.github.io/adk-docs/sessions/memory/
         
         return ChatResponse(
             session_id=session.id,

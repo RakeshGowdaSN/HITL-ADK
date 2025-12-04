@@ -345,23 +345,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
                 session_id=session.id,
             )
             
-            # Store conversation content in state for memory extraction
-            state = session.state or {}
-            conversation_history = state.get("conversation_history", [])
-            conversation_history.append({
-                "user": user_text,
-                "agent": response_text,
-            })
-            session.state["conversation_history"] = conversation_history[-10:]
-            session.state["last_user_message"] = user_text
-            session.state["last_agent_response"] = response_text
-            
-            # ALWAYS save to memory after every interaction
-            try:
-                await memory_service.add_session_to_memory(session)
-                print(f"Session {session.id} saved to memory bank")
-            except Exception as e:
-                print(f"Error saving to memory: {e}")
+            # Note: Memory is automatically saved via after_agent_callback in the agent
+            # The callback extracts info from session events (conversation history)
+            # See: https://google.github.io/adk-docs/sessions/memory/
                     
     except WebSocketDisconnect:
         print(f"User {user_id} disconnected")
