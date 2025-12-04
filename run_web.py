@@ -279,7 +279,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
                 )
         else:
             session = await session_service.create_session(
-                app_name="hitl_agent",
+                app_name="hitl_trip_planner",
                 user_id=user_id,
             )
         
@@ -292,7 +292,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
         # Load memory for this user
         try:
             memory_response = await memory_service.search_memory(
-                app_name="hitl_agent",
+                app_name="hitl_trip_planner",
                 user_id=user_id,
                 query="previous trip plans and preferences",
             )
@@ -340,7 +340,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
             
             # Update session reference
             session = await session_service.get_session(
-                app_name="hitl_agent",
+                app_name="hitl_trip_planner",
                 user_id=user_id,
                 session_id=session.id,
             )
