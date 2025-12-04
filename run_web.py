@@ -39,9 +39,10 @@ async def lifespan(app: FastAPI):
     session_service = get_session_service()
     memory_service = get_memory_service()
     
+    # CRITICAL: Use the SAME app_name across ALL agents for shared memory!
     runner = Runner(
         agent=root_agent,
-        app_name="hitl_agent",
+        app_name="hitl_trip_planner",
         session_service=session_service,
         memory_service=memory_service,
     )
@@ -267,13 +268,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: Opt
         if session_id:
             try:
                 session = await session_service.get_session(
-                    app_name="hitl_agent",
+                    app_name="hitl_trip_planner",
                     user_id=user_id,
                     session_id=session_id,
                 )
             except Exception:
                 session = await session_service.create_session(
-                    app_name="hitl_agent",
+                    app_name="hitl_trip_planner",
                     user_id=user_id,
                 )
         else:

@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     
     runner = Runner(
         agent=root_agent,
-        app_name="hitl_agent",
+        app_name="hitl_trip_planner",
         session_service=session_service,
         memory_service=memory_service,
     )
@@ -113,19 +113,19 @@ async def chat(request: ChatRequest):
         if request.session_id:
             try:
                 session = await session_service.get_session(
-                    app_name="hitl_agent",
+                    app_name="hitl_trip_planner",
                     user_id=request.user_id,
                     session_id=request.session_id,
                 )
             except Exception:
                 # Session not found, create new
                 session = await session_service.create_session(
-                    app_name="hitl_agent",
+                    app_name="hitl_trip_planner",
                     user_id=request.user_id,
                 )
         else:
             session = await session_service.create_session(
-                app_name="hitl_agent",
+                app_name="hitl_trip_planner",
                 user_id=request.user_id,
             )
         
@@ -149,7 +149,7 @@ async def chat(request: ChatRequest):
         
         # Get updated session state
         session = await session_service.get_session(
-            app_name="hitl_agent",
+            app_name="hitl_trip_planner",
             user_id=request.user_id,
             session_id=session.id,
         )
@@ -187,7 +187,7 @@ async def end_session(user_id: str, session_id: str):
     """
     try:
         session = await session_service.get_session(
-            app_name="hitl_agent",
+            app_name="hitl_trip_planner",
             user_id=user_id,
             session_id=session_id,
         )
@@ -215,7 +215,7 @@ async def get_memories(user_id: str, query: str = "trip plans and preferences"):
     """
     try:
         memory_response = await memory_service.search_memory(
-            app_name="hitl_agent",
+            app_name="hitl_trip_planner",
             user_id=user_id,
             query=query,
         )

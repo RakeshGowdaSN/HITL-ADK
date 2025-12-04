@@ -42,8 +42,9 @@ from google.adk.sessions import VertexAiSessionService
 from agent import create_root_agent
 
 
-# App name for session/memory services
-APP_NAME = "hitl_orchestrator"
+# CRITICAL: Use the SAME app_name across ALL agents for shared memory!
+# This must match what proposal_agent and iterative_agent use
+APP_NAME = "hitl_trip_planner"
 
 # Get Agent Engine ID
 ENGINE_ID = os.getenv("AGENT_ENGINE_ID")

@@ -42,9 +42,13 @@ class ADKAgentExecutor(AgentExecutor):
         self.session_service = VertexAiSessionService(agent_engine_id=ENGINE_ID)
         self.memory_service = VertexAiMemoryBankService(agent_engine_id=ENGINE_ID)
         
+        # CRITICAL: Use the SAME app_name across ALL agents for shared memory!
+        # This must match orchestrator and iterative_agent
+        self.app_name = "hitl_trip_planner"
+        
         # Create runner with services
         self.runner = Runner(
-            app_name=agent.name,
+            app_name=self.app_name,
             agent=agent,
             session_service=self.session_service,
             memory_service=self.memory_service,
@@ -105,7 +109,7 @@ class ADKAgentExecutor(AgentExecutor):
         try:
             # Create a new session for this execution
             session = await self.session_service.create_session(
-                app_name=self.agent.name,
+                app_name=self.app_name,
                 user_id=user_id,
             )
             
@@ -139,7 +143,7 @@ class ADKAgentExecutor(AgentExecutor):
 
             # Get updated session with state after execution
             session = await self.session_service.get_session(
-                app_name=self.agent.name,
+                app_name=self.app_name,
                 user_id=user_id,
                 session_id=session.id,
             )
