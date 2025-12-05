@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from google.adk.agents import LlmAgent
-from google.adk.tools import FunctionTool, load_memory
+from google.adk.tools import FunctionTool
+from google.genai import types
 
 from tools import (
     fix_route,
@@ -33,6 +34,15 @@ MODEL_ID = os.getenv("MODEL_ID", "gemini-2.5-pro")
 # revised proposal in the same turn
 # ============================================================================
 
+# Configure to prefer tool usage
+generate_config = types.GenerateContentConfig(
+    tool_config=types.ToolConfig(
+        function_calling_config=types.FunctionCallingConfig(
+            mode="ANY",  # Force the model to use tools
+        )
+    )
+)
+
 iterative_agent = LlmAgent(
     name="iterative_agent",
     model=MODEL_ID,
@@ -43,10 +53,9 @@ iterative_agent = LlmAgent(
         FunctionTool(func=fix_accommodation),
         FunctionTool(func=fix_activities),
         FunctionTool(func=present_revised_proposal),
-        load_memory,  # Can recall user preferences to better address feedback
     ],
+    generate_content_config=generate_config,
 )
 
 # Export as root_agent for the executor
 root_agent = iterative_agent
-
