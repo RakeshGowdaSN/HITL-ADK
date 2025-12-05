@@ -75,17 +75,54 @@ def present_revised_proposal(
     """
     request = tool_context.state.get("request", {})
     feedback = tool_context.state.get("feedback", "your feedback")
+    full_proposal = tool_context.state.get("full_proposal", "")
     
     # State is pre-populated with original sections, fix tools update only their section
-    route = tool_context.state.get("route", "No route")
-    accommodation = tool_context.state.get("accommodation", "No accommodation")
-    activities = tool_context.state.get("activities", "No activities")
+    route = tool_context.state.get("route", "")
+    accommodation = tool_context.state.get("accommodation", "")
+    activities = tool_context.state.get("activities", "")
     
     destination = request.get('destination', 'your destination')
     start_location = request.get('start_location', 'your location')
     duration = request.get('duration_days', 'N/A')
     
-    proposal = f"""
+    # If sections look like placeholders, try to use full_proposal
+    if route.startswith("[See full") or not route:
+        route = "Route details from original proposal"
+    if activities.startswith("[See full") or not activities:
+        activities = "Activities from original proposal"
+    
+    # Build proposal - include full_proposal reference if sections weren't parsed properly
+    if full_proposal and (not route or route == "Route details from original proposal"):
+        # Couldn't parse sections - show what we updated plus reference to original
+        proposal = f"""
+================================================================================
+REVISED TRIP PROPOSAL (Updated based on: {feedback})
+{start_location} to {destination}
+Duration: {duration} days
+================================================================================
+
+**UPDATED SECTION - {tool_context.state.get('affected_section', 'accommodation').upper()}:**
+
+{accommodation}
+
+--------------------------------------------------------------------------------
+
+**OTHER SECTIONS (unchanged from original proposal):**
+
+The route and activities remain the same as in the original proposal.
+
+================================================================================
+REVISION SUMMARY: {summary}
+================================================================================
+
+Please review this revised proposal and reply with:
+- 'approve' to finalize this trip plan
+- 'reject: <your feedback>' to request more changes
+"""
+    else:
+        # Full sections available
+        proposal = f"""
 ================================================================================
 REVISED TRIP PROPOSAL (Updated based on: {feedback})
 {start_location} to {destination}

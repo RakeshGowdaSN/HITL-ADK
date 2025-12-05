@@ -91,7 +91,7 @@ class ADKAgentExecutor(AgentExecutor):
     def _parse_revision_request(self, message: str) -> dict:
         """
         Parse REVISION_REQUEST from orchestrator to extract context.
-        Returns dict with feedback, section, request info, and current proposal sections.
+        Handles both structured format and markdown format proposals.
         """
         import re
         result = {
@@ -101,13 +101,13 @@ class ADKAgentExecutor(AgentExecutor):
             "route": "",
             "accommodation": "",
             "activities": "",
+            "full_proposal": "",
         }
         
         # CRITICAL: Normalize escaped newlines to actual newlines
-        # The message might have literal '\n' strings instead of newline characters
         message = message.replace('\\n', '\n')
         
-        # Extract FEEDBACK (up to next line)
+        # Extract FEEDBACK
         feedback_match = re.search(r'FEEDBACK:\s*([^\n]+)', message)
         if feedback_match:
             result["feedback"] = feedback_match.group(1).strip()
@@ -117,7 +117,7 @@ class ADKAgentExecutor(AgentExecutor):
         if section_match:
             result["affected_section"] = section_match.group(1).strip().lower()
         
-        # Extract REQUEST info
+        # Extract REQUEST info - try multiple patterns
         request_match = re.search(r'REQUEST:\s*destination=([^,]+),\s*start=([^,]+),\s*days=(\d+)', message)
         if request_match:
             result["request"] = {
@@ -125,41 +125,64 @@ class ADKAgentExecutor(AgentExecutor):
                 "start_location": request_match.group(2).strip(),
                 "duration_days": int(request_match.group(3)),
             }
+        else:
+            # Try to extract from proposal text
+            dest_match = re.search(r'trip.*?to\s+(\w+)', message, re.IGNORECASE)
+            from_match = re.search(r'from\s+(\w+)', message, re.IGNORECASE)
+            days_match = re.search(r'(\d+)[- ]day', message, re.IGNORECASE)
+            if dest_match or from_match:
+                result["request"] = {
+                    "destination": dest_match.group(1) if dest_match else "destination",
+                    "start_location": from_match.group(1) if from_match else "origin",
+                    "duration_days": int(days_match.group(1)) if days_match else 2,
+                }
         
-        # Extract sections from CURRENT_PROPOSAL
-        # Sections are separated by "--------------------------------------------------------------------------------"
-        proposal_match = re.search(r'CURRENT_PROPOSAL:\s*(.+)', message, re.DOTALL)
+        # Extract CURRENT_PROPOSAL
+        proposal_match = re.search(r'CURRENT_PROPOSAL:\s*(.+?)(?:Route to iterative|$)', message, re.DOTALL)
         if proposal_match:
-            proposal = proposal_match.group(1)
+            proposal = proposal_match.group(1).strip()
+            result["full_proposal"] = proposal
             
-            # Split by separator line
-            separator = r'-{20,}'
-            parts = re.split(separator, proposal)
+            # Try structured format first (ROUTE PLAN:, ACCOMMODATION:, ACTIVITIES:)
+            route_patterns = [
+                r'(ROUTE\s*PLAN:.*?)(?=ACCOMMODATION|ACTIVITIES|\*\*Hotels|\*\*Schedule|={10,}|-{10,}|$)',
+                r'(\*\*Route\s*Description:?\*\*.*?)(?=\*\*Hotels|\*\*Accommodation|\*\*Schedule|\*\*Activities|$)',
+                r'(Route:.*?)(?=Accommodation|Hotels|Activities|Schedule|$)',
+            ]
+            for pattern in route_patterns:
+                match = re.search(pattern, proposal, re.DOTALL | re.IGNORECASE)
+                if match and len(match.group(1).strip()) > 20:
+                    result["route"] = match.group(1).strip()
+                    break
             
-            for part in parts:
-                part_clean = part.strip()
-                # Match ROUTE PLAN section
-                if re.search(r'ROUTE\s*(PLAN)?:', part_clean, re.IGNORECASE):
-                    # Extract everything from ROUTE PLAN: to end of this part
-                    route_match = re.search(r'(ROUTE\s*(PLAN)?:.*)', part_clean, re.DOTALL | re.IGNORECASE)
-                    if route_match:
-                        result["route"] = route_match.group(1).strip()
-                
-                # Match ACCOMMODATION section
-                elif re.search(r'ACCOMMODATION:', part_clean, re.IGNORECASE):
-                    accom_match = re.search(r'(ACCOMMODATION:.*)', part_clean, re.DOTALL | re.IGNORECASE)
-                    if accom_match:
-                        result["accommodation"] = accom_match.group(1).strip()
-                
-                # Match ACTIVITIES section (ACTIVITIES & ITINERARY or just ACTIVITIES)
-                elif re.search(r'ACTIVITIES', part_clean, re.IGNORECASE):
-                    activities_match = re.search(r'(ACTIVITIES.*)', part_clean, re.DOTALL | re.IGNORECASE)
-                    if activities_match:
-                        result["activities"] = activities_match.group(1).strip()
+            accom_patterns = [
+                r'(ACCOMMODATION:.*?)(?=ROUTE|ACTIVITIES|\*\*Schedule|={10,}|-{10,}|$)',
+                r'(\*\*Hotels:?\*\*.*?)(?=\*\*Route|\*\*Schedule|\*\*Activities|$)',
+                r'(Hotels:.*?)(?=Route|Activities|Schedule|$)',
+                r'(Accommodation:.*?)(?=Route|Activities|Schedule|$)',
+            ]
+            for pattern in accom_patterns:
+                match = re.search(pattern, proposal, re.DOTALL | re.IGNORECASE)
+                if match and len(match.group(1).strip()) > 20:
+                    result["accommodation"] = match.group(1).strip()
+                    break
+            
+            activities_patterns = [
+                r'(ACTIVITIES\s*(&\s*ITINERARY)?:.*?)(?=ROUTE|ACCOMMODATION|SUMMARY|={10,}|-{10,}|$)',
+                r'(\*\*Schedule:?\*\*.*?)(?=\*\*Route|\*\*Hotels|\*\*Accommodation|$)',
+                r'(\*\*Activities:?\*\*.*?)(?=\*\*Route|\*\*Hotels|$)',
+                r'(Schedule:.*?)(?=Route|Hotels|Accommodation|$)',
+            ]
+            for pattern in activities_patterns:
+                match = re.search(pattern, proposal, re.DOTALL | re.IGNORECASE)
+                if match and len(match.group(1).strip()) > 20:
+                    result["activities"] = match.group(1).strip()
+                    break
         
-        print(f"[Parser] Extracted: feedback={result['feedback']}, section={result['affected_section']}")
+        print(f"[Parser] Feedback: {result['feedback']}, Section: {result['affected_section']}")
         print(f"[Parser] Request: {result['request']}")
-        print(f"[Parser] Route length: {len(result['route'])}, Accommodation length: {len(result['accommodation'])}, Activities length: {len(result['activities'])}")
+        print(f"[Parser] Route len: {len(result['route'])}, Accom len: {len(result['accommodation'])}, Activities len: {len(result['activities'])}")
+        print(f"[Parser] Full proposal len: {len(result['full_proposal'])}")
         
         return result
 
@@ -226,11 +249,12 @@ class ADKAgentExecutor(AgentExecutor):
                 print(f"[Iterative Agent] Created new session {session.id} for user {user_id}")
             
             # Parse REVISION_REQUEST and pre-populate state
-            if "REVISION_REQUEST:" in query:
+            if "REVISION_REQUEST:" in query or "FEEDBACK:" in query:
                 parsed = self._parse_revision_request(query)
                 session.state["feedback"] = parsed["feedback"]
                 session.state["affected_section"] = parsed["affected_section"]
                 session.state["request"] = parsed["request"]
+                
                 # Store original sections so fix tools and present_revised_proposal can use them
                 if parsed["route"]:
                     session.state["route"] = parsed["route"]
@@ -238,7 +262,19 @@ class ADKAgentExecutor(AgentExecutor):
                     session.state["accommodation"] = parsed["accommodation"]
                 if parsed["activities"]:
                     session.state["activities"] = parsed["activities"]
-                print(f"[Iterative Agent] Parsed revision request: section={parsed['affected_section']}, feedback={parsed['feedback']}")
+                
+                # Store full proposal as fallback
+                if parsed["full_proposal"]:
+                    session.state["full_proposal"] = parsed["full_proposal"]
+                    
+                    # If individual sections weren't parsed, use full proposal with markers
+                    if not parsed["route"]:
+                        session.state["route"] = "[See full proposal for route details]"
+                    if not parsed["activities"]:
+                        session.state["activities"] = "[See full proposal for activities]"
+                
+                print(f"[Iterative Agent] Parsed: section={parsed['affected_section']}, feedback={parsed['feedback']}")
+                print(f"[Iterative Agent] Sections found - Route: {bool(parsed['route'])}, Accom: {bool(parsed['accommodation'])}, Activities: {bool(parsed['activities'])}")
             
             # Build the content message
             content = types.Content(
