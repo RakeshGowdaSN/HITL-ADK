@@ -37,7 +37,6 @@ def recall_trip_info(
     
     info = f"Trip to {request.get('destination', 'unknown')} from {request.get('start_location', 'unknown')}\n"
     info += f"Duration: {request.get('duration_days', '?')} days\n"
-    info += f"Preferences: {request.get('preferences', 'none')}\n"
     info += f"Status: {'Finalized' if finalized else 'In progress'}\n\n"
     
     if route:
@@ -58,18 +57,23 @@ def capture_request(
     destination: str,
     start_location: str,
     duration_days: int,
-    preferences: str,
     tool_context: ToolContext,
 ) -> str:
-    """Capture user's travel request and store in state."""
+    """
+    Capture user's travel request. Only requires source, destination, and days.
+    
+    Args:
+        destination: Where the user wants to go
+        start_location: Where the user is starting from
+        duration_days: How many days for the trip
+    """
     tool_context.state["request"] = {
         "destination": destination,
         "start_location": start_location,
         "duration_days": duration_days,
-        "preferences": preferences,
     }
     tool_context.state["awaiting_approval"] = False
-    return f"Request captured. Delegating to proposal_agent."
+    return f"Request captured: {duration_days} day trip to {destination} from {start_location}. Delegating to proposal_agent."
 
 
 # ============================================================================
@@ -128,7 +132,7 @@ def present_proposal(
     proposal = f"""
 ================================================================================
 TRIP PROPOSAL: {request.get('start_location')} → {request.get('destination')}
-Duration: {request.get('duration_days')} days | Preferences: {request.get('preferences')}
+Duration: {request.get('duration_days')} days
 ================================================================================
 
 {route}
@@ -245,7 +249,7 @@ def present_revised_proposal(
 ================================================================================
 REVISED TRIP PROPOSAL (based on your feedback: {feedback})
 {request.get('start_location')} → {request.get('destination')}
-Duration: {request.get('duration_days')} days | Preferences: {request.get('preferences')}
+Duration: {request.get('duration_days')} days
 ================================================================================
 
 {route}

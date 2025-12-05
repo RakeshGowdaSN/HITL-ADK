@@ -151,5 +151,17 @@ def process_rejection(
     tool_context.state["affected_section"] = affected_section
     tool_context.state["awaiting_approval"] = False
     
-    return f"Feedback received: '{feedback}' for {affected_section}. Routing to iterative_agent."
+    # Include full proposal for iterative agent to preserve other sections
+    pending = tool_context.state.get("pending_proposal", "")
+    request = tool_context.state.get("request", {})
+    
+    # Return structured info for delegation - iterative agent needs the full context
+    return f"""REVISION_REQUEST:
+FEEDBACK: {feedback}
+SECTION: {affected_section}
+REQUEST: destination={request.get('destination', 'unknown')}, start={request.get('start_location', 'unknown')}, days={request.get('duration_days', '?')}
+CURRENT_PROPOSAL:
+{pending}
+
+Route to iterative_agent with this context to fix {affected_section} based on: {feedback}"""
 
