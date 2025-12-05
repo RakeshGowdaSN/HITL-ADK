@@ -103,8 +103,12 @@ class ADKAgentExecutor(AgentExecutor):
             "activities": "",
         }
         
-        # Extract FEEDBACK
-        feedback_match = re.search(r'FEEDBACK:\s*(.+?)(?:\n|$)', message)
+        # CRITICAL: Normalize escaped newlines to actual newlines
+        # The message might have literal '\n' strings instead of newline characters
+        message = message.replace('\\n', '\n')
+        
+        # Extract FEEDBACK (up to next line)
+        feedback_match = re.search(r'FEEDBACK:\s*([^\n]+)', message)
         if feedback_match:
             result["feedback"] = feedback_match.group(1).strip()
         
