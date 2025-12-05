@@ -87,6 +87,62 @@ class ADKAgentExecutor(AgentExecutor):
         if match:
             return match.group(1)
         return None
+    
+    def _parse_revision_request(self, message: str) -> dict:
+        """
+        Parse REVISION_REQUEST from orchestrator to extract context.
+        Returns dict with feedback, section, request info, and current proposal sections.
+        """
+        import re
+        result = {
+            "feedback": "",
+            "affected_section": "",
+            "request": {},
+            "route": "",
+            "accommodation": "",
+            "activities": "",
+        }
+        
+        # Extract FEEDBACK
+        feedback_match = re.search(r'FEEDBACK:\s*(.+?)(?:\n|$)', message)
+        if feedback_match:
+            result["feedback"] = feedback_match.group(1).strip()
+        
+        # Extract SECTION
+        section_match = re.search(r'SECTION:\s*(\w+)', message)
+        if section_match:
+            result["affected_section"] = section_match.group(1).strip().lower()
+        
+        # Extract REQUEST info
+        request_match = re.search(r'REQUEST:\s*destination=([^,]+),\s*start=([^,]+),\s*days=(\d+)', message)
+        if request_match:
+            result["request"] = {
+                "destination": request_match.group(1).strip(),
+                "start_location": request_match.group(2).strip(),
+                "duration_days": int(request_match.group(3)),
+            }
+        
+        # Extract sections from CURRENT_PROPOSAL
+        proposal_match = re.search(r'CURRENT_PROPOSAL:\s*(.+)', message, re.DOTALL)
+        if proposal_match:
+            proposal = proposal_match.group(1)
+            
+            # Extract ROUTE section
+            route_match = re.search(r'(ROUTE[^\n]*\n(?:(?!ACCOMMODATION|ACTIVITIES|===).*\n)*)', proposal, re.IGNORECASE)
+            if route_match:
+                result["route"] = route_match.group(1).strip()
+            
+            # Extract ACCOMMODATION section
+            accom_match = re.search(r'(ACCOMMODATION[^\n]*\n(?:(?!ROUTE|ACTIVITIES|===).*\n)*)', proposal, re.IGNORECASE)
+            if accom_match:
+                result["accommodation"] = accom_match.group(1).strip()
+            
+            # Extract ACTIVITIES section
+            activities_match = re.search(r'(ACTIVITIES[^\n]*\n(?:(?!ROUTE|ACCOMMODATION|===).*\n)*)', proposal, re.IGNORECASE)
+            if activities_match:
+                result["activities"] = activities_match.group(1).strip()
+        
+        return result
 
     async def cancel(
         self,
@@ -149,6 +205,21 @@ class ADKAgentExecutor(AgentExecutor):
                     user_id=user_id,
                 )
                 print(f"[Iterative Agent] Created new session {session.id} for user {user_id}")
+            
+            # Parse REVISION_REQUEST and pre-populate state
+            if "REVISION_REQUEST:" in query:
+                parsed = self._parse_revision_request(query)
+                session.state["feedback"] = parsed["feedback"]
+                session.state["affected_section"] = parsed["affected_section"]
+                session.state["request"] = parsed["request"]
+                # Store original sections so fix tools and present_revised_proposal can use them
+                if parsed["route"]:
+                    session.state["route"] = parsed["route"]
+                if parsed["accommodation"]:
+                    session.state["accommodation"] = parsed["accommodation"]
+                if parsed["activities"]:
+                    session.state["activities"] = parsed["activities"]
+                print(f"[Iterative Agent] Parsed revision request: section={parsed['affected_section']}, feedback={parsed['feedback']}")
             
             # Build the content message
             content = types.Content(

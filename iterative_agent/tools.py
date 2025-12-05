@@ -64,25 +64,22 @@ Schedule:
 
 def present_revised_proposal(
     summary: str,
-    preserved_route: str,
-    preserved_activities: str,
     tool_context: ToolContext,
 ) -> str:
     """
     Present the revised proposal for re-approval.
+    State is pre-populated by agent_executor with original sections from CURRENT_PROPOSAL.
     
     Args:
         summary: Summary of changes made
-        preserved_route: The route section from CURRENT_PROPOSAL (copy verbatim if not changed)
-        preserved_activities: The activities section from CURRENT_PROPOSAL (copy verbatim if not changed)
     """
     request = tool_context.state.get("request", {})
     feedback = tool_context.state.get("feedback", "your feedback")
     
-    # Use preserved sections OR state (if that section was just fixed)
-    route = tool_context.state.get("route") or preserved_route or "No route"
+    # State is pre-populated with original sections, fix tools update only their section
+    route = tool_context.state.get("route", "No route")
     accommodation = tool_context.state.get("accommodation", "No accommodation")
-    activities = tool_context.state.get("activities") or preserved_activities or "No activities"
+    activities = tool_context.state.get("activities", "No activities")
     
     destination = request.get('destination', 'your destination')
     start_location = request.get('start_location', 'your location')
