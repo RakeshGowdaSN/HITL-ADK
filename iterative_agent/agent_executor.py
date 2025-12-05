@@ -123,24 +123,39 @@ class ADKAgentExecutor(AgentExecutor):
             }
         
         # Extract sections from CURRENT_PROPOSAL
+        # Sections are separated by "--------------------------------------------------------------------------------"
         proposal_match = re.search(r'CURRENT_PROPOSAL:\s*(.+)', message, re.DOTALL)
         if proposal_match:
             proposal = proposal_match.group(1)
             
-            # Extract ROUTE section
-            route_match = re.search(r'(ROUTE[^\n]*\n(?:(?!ACCOMMODATION|ACTIVITIES|===).*\n)*)', proposal, re.IGNORECASE)
-            if route_match:
-                result["route"] = route_match.group(1).strip()
+            # Split by separator line
+            separator = r'-{20,}'
+            parts = re.split(separator, proposal)
             
-            # Extract ACCOMMODATION section
-            accom_match = re.search(r'(ACCOMMODATION[^\n]*\n(?:(?!ROUTE|ACTIVITIES|===).*\n)*)', proposal, re.IGNORECASE)
-            if accom_match:
-                result["accommodation"] = accom_match.group(1).strip()
-            
-            # Extract ACTIVITIES section
-            activities_match = re.search(r'(ACTIVITIES[^\n]*\n(?:(?!ROUTE|ACCOMMODATION|===).*\n)*)', proposal, re.IGNORECASE)
-            if activities_match:
-                result["activities"] = activities_match.group(1).strip()
+            for part in parts:
+                part_clean = part.strip()
+                # Match ROUTE PLAN section
+                if re.search(r'ROUTE\s*(PLAN)?:', part_clean, re.IGNORECASE):
+                    # Extract everything from ROUTE PLAN: to end of this part
+                    route_match = re.search(r'(ROUTE\s*(PLAN)?:.*)', part_clean, re.DOTALL | re.IGNORECASE)
+                    if route_match:
+                        result["route"] = route_match.group(1).strip()
+                
+                # Match ACCOMMODATION section
+                elif re.search(r'ACCOMMODATION:', part_clean, re.IGNORECASE):
+                    accom_match = re.search(r'(ACCOMMODATION:.*)', part_clean, re.DOTALL | re.IGNORECASE)
+                    if accom_match:
+                        result["accommodation"] = accom_match.group(1).strip()
+                
+                # Match ACTIVITIES section (ACTIVITIES & ITINERARY or just ACTIVITIES)
+                elif re.search(r'ACTIVITIES', part_clean, re.IGNORECASE):
+                    activities_match = re.search(r'(ACTIVITIES.*)', part_clean, re.DOTALL | re.IGNORECASE)
+                    if activities_match:
+                        result["activities"] = activities_match.group(1).strip()
+        
+        print(f"[Parser] Extracted: feedback={result['feedback']}, section={result['affected_section']}")
+        print(f"[Parser] Request: {result['request']}")
+        print(f"[Parser] Route length: {len(result['route'])}, Accommodation length: {len(result['accommodation'])}, Activities length: {len(result['activities'])}")
         
         return result
 
